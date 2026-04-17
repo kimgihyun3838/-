@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(python -c ':*)",
+      "Bash(python -m:*)",
+      "Bash(pip install:*)",
+      "Bash(python -c \"from me551_solver.ui.cli import main; print\\('OK'\\)\")",
+      "Bash(python:*)",
+      "Bash(where python:*)",
+      "Bash(xargs wc:*)",
+      "Bash(wc -l \"C:\\\\Users\\\\김기현\\\\Desktop\\\\선형진동공학\\\\src\\\\me551_solver\\\\core\"*.py)"
+    ]
+  }
+}

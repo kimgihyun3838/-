@@ -1,0 +1,53 @@
+═══════════════════════════════════════════════════════
+════════════ Problem: ConceptDB -- T/F 분석 ═════════════
+═══════════════════════════════════════════════════════
+
+▶ Given:
+  statement = Any p-th order linear MIMO systems with n-degrees offreedom can be formulated into a 1-st order state equation with p-degrees of freedom.
+
+▶ Solution:
+  Step 1: Query tokens
+    [′degrees′, ′equation′, ′formulated′, ′freedom′, ′linear′, ′mimo′, ′offreedom′, ′order′, ′state′, ′systems′]
+
+  Step 2: 입력 문장 구조 분석
+    범위 확장: [′any′]
+
+  Step 3: Match #1: rule_011 (score=15.0)
+    {′statement′: ′A p-th order MIMO system with n inputs/outputs converted to first-order state form has a state vector of dimension p*n.′, ′topic′: ′state_equations′, ′keyword_overlap′: [′mimo′, ′order′]}
+
+  Step 4: Match #2: rule_004 (score=8.0)
+    {′statement′: "The equation m*x″ + c*x′ + k*x = f(t) is linear if and only if m, c, k are constants.", ′topic′: ′linear_systems′, ′keyword_overlap′: []}
+
+  Step 5: Match #3: rule_058 (score=8.0)
+    {′statement′: ′The zero-input response (homogeneous solution) and zero-state response (particular solution) can be superposed to give the total response for a linear system.′, ′topic′: ′linear_systems′, ′keyword_overlap′: []}
+
+  Step 6: 충돌 분석
+    [HIGH] trap_pattern: 상태 방정식의 차원은 p-DOF가 아니라 p*n-DOF이다
+
+▶ Final Answer:
+  rule_id = rule_011
+  topic = state_equations
+  matched_statement = A p-th order MIMO system with n inputs/outputs converted to first-order state form has a state vector of dimension p*n.
+  rule_verdict = TRUE
+  adjusted_verdict = FALSE
+  confidence = CONFLICT_DETECTED
+  verdict_note = 매칭 규칙(rule_011)은 TRUE이지만, 입력 문장과 1개의 구조적 차이가 감지됨 -> 추정: FALSE
+  reason = A p-th order system of n equations requires n*p state variables to fully describe the system state. Each of the n second-order equations (for example) contributes 2 state variables (displacement and velocity), so a p-th order n-DOF system yields a state vector of dimension p*n. The state matrix A is then of size (p*n) × (p*n).
+  lecture_ref = Lecture 3
+  match_score = 15
+  conflicts = [{′type′: ′trap_pattern′, ′detail′: ′상태 방정식의 차원은 p-DOF가 아니라 p*n-DOF이다′, ′severity′: ′HIGH′}]
+  common_trap = Students confuse n (number of DOF) with the order of the ODE. The state dimension is the product p*n.
+  related_rules = [′rule_012′, ′rule_013′]
+  also_consider = [{′rule_id′: ′rule_004′, ′statement′: "The equation m*x″ + c*x′ + k*x = f(t) is linear if and only if m, c, k are constants.", ′verdict′: ′FALSE′, ′topic′: ′linear_systems′}, {′rule_id′: ′rule_058′, ′statement′: ′The zero-input response (homogeneous solution) and zero-state response (particular solution) can be superposed to give the total response for a linear system.′, ′verdict′: ′TRUE′, ′topic′: ′linear_systems′}]
+  advisory = 매칭 규칙: A p-th order MIMO system with n inputs/outputs converted to first-order state form has a state vector of dimension p*n.
+규칙 verdict: TRUE
+주의 포인트:
+  - [trap_pattern] 상태 방정식의 차원은 p-DOF가 아니라 p*n-DOF이다
+추정 판정: FALSE (규칙과 반대)
+흔한 함정: Students confuse n (number of DOF) with the order of the ODE. The state dimension is the product p*n.
+  verdict = FALSE
+
+▶ Verification:
+  Confidence: CONFLICT_DETECTED | Score: 15.0 | Conflicts: 1 (1 HIGH) | Rules: 62
+
+═══════════════════════════════════════════════════════

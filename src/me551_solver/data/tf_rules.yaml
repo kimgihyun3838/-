@@ -1,0 +1,1942 @@
+# ME551 Linear Vibration Engineering — True/False Concept Rules Database
+# Organized by topic. 40+ rules covering all midterm-relevant areas.
+# Schema: id, topic, statement, verdict, reason, keywords, common_trap, related_rules, lecture_ref
+
+rules:
+
+  # ============================================================
+  # TOPIC 1: Linear Systems (Linearity, Superposition)
+  # ============================================================
+
+  - id: "rule_001"
+    topic: "linear_systems"
+    statement: "A linear system satisfies both homogeneity and additivity (superposition principle)."
+    verdict: true
+    reason: >
+      Linearity is defined by two properties: homogeneity (scaling input scales output by the same
+      factor) and additivity (sum of inputs produces sum of individual outputs). Together these
+      constitute the superposition principle. All systems described by linear ODEs with constant
+      coefficients satisfy both. A single property alone is insufficient to guarantee linearity.
+    keywords: [linearity, homogeneity, additivity, superposition, linear system]
+    common_trap: "Students sometimes confuse 'superposition' as a single condition; it is actually the combination of both homogeneity and additivity."
+    related_rules: [rule_002, rule_003]
+    lecture_ref: "Lecture 2"
+
+  - id: "rule_002"
+    topic: "linear_systems"
+    statement: "If a system satisfies homogeneity alone, it is necessarily linear."
+    verdict: false
+    reason: >
+      Homogeneity (f(αx) = αf(x)) alone does not guarantee linearity. A system must also satisfy
+      additivity (f(x+y) = f(x)+f(y)) to be fully linear. There exist pathological functions that
+      are homogeneous but not additive. Both conditions must hold simultaneously.
+    keywords: [homogeneity, linearity, additivity, superposition]
+    common_trap: "Students often assume homogeneity alone is sufficient for linearity."
+    related_rules: [rule_001, rule_003]
+    lecture_ref: "Lecture 2"
+
+  - id: "rule_003"
+    topic: "linear_systems"
+    statement: "For a linear system, the response to a sum of inputs equals the sum of the individual responses."
+    verdict: true
+    reason: >
+      This is the additivity (superposition) property of linear systems. Because the governing
+      equations are linear, individual responses can be computed separately and added together.
+      This enables decomposition of complex excitations into simpler components, solving each
+      independently, and then superposing results.
+    keywords: [superposition, additivity, linear system, response, sum of inputs]
+    related_rules: [rule_001, rule_002]
+    lecture_ref: "Lecture 2"
+
+  - id: "rule_004"
+    topic: "linear_systems"
+    statement: "The equation m*x'' + c*x' + k*x = f(t) is linear if and only if m, c, k are constants."
+    verdict: false
+    reason: >
+      The equation is linear even when m, c, k are functions of time t, because linearity refers to
+      the relationship between input f(t) and output x(t). An equation is linear as long as x, x',
+      x'' appear with no powers or products among them. Constant coefficients are a stronger
+      requirement (LTI — linear time-invariant), but not necessary for linearity.
+    keywords: [linear ODE, constant coefficients, LTI, linearity, time-varying]
+    common_trap: "Students confuse LTI (linear time-invariant) with just 'linear'. Linearity does not require constant coefficients."
+    related_rules: [rule_001]
+    lecture_ref: "Lecture 2"
+
+  - id: "rule_005"
+    topic: "linear_systems"
+    statement: "The principle of superposition applies to nonlinear systems when the excitation amplitude is sufficiently small."
+    verdict: false
+    reason: >
+      Superposition is a property of linear systems only. For truly nonlinear systems, superposition
+      does not hold regardless of amplitude. Small-amplitude linearization creates a locally linear
+      approximation around an equilibrium point, to which superposition can be applied, but the
+      original nonlinear system itself never satisfies superposition exactly.
+    keywords: [superposition, nonlinear, linearization, small amplitude, equilibrium]
+    common_trap: "Students confuse local linearization (valid near equilibrium) with the nonlinear system itself obeying superposition."
+    related_rules: [rule_001, rule_003]
+    lecture_ref: "Lecture 2"
+
+  # ============================================================
+  # TOPIC 2: FRF & Convolution
+  # ============================================================
+
+  - id: "rule_006"
+    topic: "frf_convolution"
+    statement: "The response to an arbitrary excitation in the time domain is obtained by convolution of the impulse response function h(t) with the input f(t)."
+    verdict: true
+    reason: >
+      For a linear time-invariant system, the output is the convolution integral:
+      x(t) = integral h(t-tau)*f(tau) dtau. This is a direct consequence of the superposition
+      principle and the definition of the impulse response. Any input can be represented as a
+      continuous superposition of impulses, and the corresponding output is the superposition of
+      delayed impulse responses.
+    keywords: [convolution, impulse response, arbitrary excitation, LTI, time domain]
+    related_rules: [rule_007, rule_008]
+    lecture_ref: "Lecture 3"
+    valid_for: ["forced vibration", "forced response", "LTI system"]
+    invalid_for: ["free vibration", "free response"]
+    trap_patterns:
+      - pattern: "both.*convolution"
+        explanation: "시간 영역에서는 convolution이지만, 주파수 영역에서는 multiplication (곱셈)이다"
+      - pattern: "free.*vibration|free.*response"
+        explanation: "Convolution/FRF는 forced vibration에만 적용됨 (free vibration은 초기조건 응답)"
+      - pattern: "frequency.*domain.*convolution|convolution.*frequency"
+        explanation: "주파수 영역에서는 convolution이 아니라 multiplication이다"
+
+  - id: "rule_007"
+    topic: "frf_convolution"
+    statement: "In the frequency domain, the response spectrum X(omega) is obtained by multiplying the FRF H(omega) with the input spectrum F(omega)."
+    verdict: true
+    reason: >
+      The Fourier (or Laplace) transform converts the convolution integral in the time domain into
+      simple multiplication in the frequency domain: X(omega) = H(omega)*F(omega). This is the
+      convolution theorem. The FRF H(omega) = X(omega)/F(omega) is the frequency-domain
+      transfer function, relating input and output spectra.
+    keywords: [FRF, frequency domain, multiplication, convolution theorem, transfer function]
+    common_trap: "Students sometimes write convolution in frequency domain — in frequency domain it is multiplication, not convolution."
+    related_rules: [rule_006, rule_008]
+    lecture_ref: "Lecture 3"
+    valid_for: ["forced vibration", "frequency domain"]
+    invalid_for: ["free vibration"]
+    trap_patterns:
+      - pattern: "convolution.*frequency|frequency.*convolution"
+        explanation: "주파수 영역에서는 multiplication이며 convolution이 아님"
+
+  - id: "rule_008"
+    topic: "frf_convolution"
+    statement: "The FRF H(omega) of an undamped SDOF system has a real and imaginary part that are both nonzero at all frequencies."
+    verdict: false
+    reason: >
+      For an undamped SDOF system, the FRF is H(omega) = 1/(k - m*omega^2), which is purely real
+      for all omega ≠ omega_n. There is no imaginary part unless there is damping. The imaginary
+      part arises from the damping term c*omega in the denominator. At resonance (omega = omega_n)
+      the undamped FRF goes to infinity.
+    keywords: [FRF, undamped, real part, imaginary part, SDOF, resonance]
+    common_trap: "Students assume FRF always has both real and imaginary parts; for undamped systems the FRF is purely real."
+    related_rules: [rule_007, rule_009]
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_009"
+    topic: "frf_convolution"
+    statement: "The impulse response function h(t) is the inverse Fourier transform of the FRF H(omega)."
+    verdict: true
+    reason: >
+      By the convolution theorem and the Fourier transform pair relationship, h(t) and H(omega) are
+      a Fourier transform pair: H(omega) = FT{h(t)} and h(t) = IFT{H(omega)}. This fundamental
+      relationship connects the time-domain impulse response with the frequency-domain FRF and
+      is the basis for experimental frequency response analysis.
+    keywords: [impulse response, FRF, Fourier transform, inverse Fourier, transform pair]
+    related_rules: [rule_006, rule_007]
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_010"
+    topic: "frf_convolution"
+    statement: "For a 3rd-order linear system, the FRF can always be decomposed into a first-order system and a second-order system in partial fractions."
+    verdict: true
+    reason: >
+      A 3rd-order transfer function G(s) = 1/(a3*s^3 + a2*s^2 + a1*s + a0) can be factored by
+      finding its roots. A real polynomial of odd degree must have at least one real root; the
+      remaining roots are either real or complex conjugate pairs. Partial fraction decomposition
+      then gives a first-order subsystem (real pole) plus a second-order subsystem (complex
+      conjugate poles), each with physically interpretable parameters.
+    keywords: [FRF, partial fraction, 3rd order, first-order, second-order, decomposition]
+    common_trap: "Students may not realize that a real polynomial of odd degree always has at least one real root, guaranteeing the 1st + 2nd decomposition."
+    related_rules: [rule_007]
+    lecture_ref: "Lecture 3"
+
+  # ============================================================
+  # TOPIC 3: State Equations
+  # ============================================================
+
+  - id: "rule_011"
+    topic: "state_equations"
+    statement: "A p-th order MIMO system with n inputs/outputs converted to first-order state form has a state vector of dimension p*n."
+    verdict: true
+    reason: >
+      A p-th order system of n equations requires n*p state variables to fully describe the system
+      state. Each of the n second-order equations (for example) contributes 2 state variables
+      (displacement and velocity), so a p-th order n-DOF system yields a state vector of dimension
+      p*n. The state matrix A is then of size (p*n) × (p*n).
+    keywords: [state equation, state vector, dimension, MIMO, first-order form, order]
+    common_trap: "Students confuse n (number of DOF) with the order of the ODE. The state dimension is the product p*n."
+    related_rules: [rule_012, rule_013]
+    lecture_ref: "Lecture 3"
+    key_quantities:
+      state_dimension: "p*n"
+    trap_patterns:
+      - pattern: "\\bp\\b[\\s-]*dimensional|dimension\\s+p\\b"
+        explanation: "상태 벡터 차원은 p가 아니라 p*n이다"
+      - pattern: "\\bn\\b[\\s-]*dimensional(?!.*p)|dimension\\s+n\\b(?!.*p)"
+        explanation: "상태 벡터 차원은 n이 아니라 p*n (2차 시스템이면 2n)이다"
+      - pattern: "\\bwith\\s+p[\\s-]*(?:DOF|dof|degree)"
+        explanation: "상태 방정식의 차원은 p-DOF가 아니라 p*n-DOF이다"
+      - pattern: "\\bp[\\s-]*(?:DOF|dof)\\b(?!.*\\bn)"
+        explanation: "상태 벡터 차원은 p가 아니라 p*n이다 (n=자유도 수)"
+
+  - id: "rule_012"
+    topic: "state_equations"
+    statement: "The state transition matrix Phi(t) = exp(At) satisfies Phi(0) = I (the identity matrix)."
+    verdict: true
+    reason: >
+      The matrix exponential exp(At) evaluated at t=0 gives exp(A*0) = exp(0) = I, the identity
+      matrix. This is a fundamental property of the state transition matrix. It ensures that the
+      initial state x(0) maps to itself at t=0: x(0) = Phi(0)*x(0) = I*x(0) = x(0).
+    keywords: [transition matrix, matrix exponential, identity, state equation, initial condition]
+    related_rules: [rule_011, rule_013]
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_013"
+    topic: "state_equations"
+    statement: "The state transition matrix Phi(t) = exp(At) has the group property: Phi(t1+t2) = Phi(t1)*Phi(t2)."
+    verdict: true
+    reason: >
+      For a time-invariant system, the matrix exponential satisfies exp(A(t1+t2)) = exp(At1)*exp(At2)
+      because A commutes with itself. This group (semigroup) property means the transition from 0
+      to t1+t2 can be decomposed into two sequential transitions. It is the matrix analogue of the
+      scalar exponential property e^(a+b) = e^a * e^b.
+    keywords: [transition matrix, group property, matrix exponential, semigroup, time-invariant]
+    related_rules: [rule_012]
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_014"
+    topic: "state_equations"
+    statement: "For an autonomous linear system x_dot = Ax, the stability is determined entirely by the eigenvalues of A."
+    verdict: true
+    reason: >
+      The solution is x(t) = exp(At)*x(0), and the behavior of exp(At) as t → ∞ is governed by the
+      eigenvalues of A. If all eigenvalues have negative real parts, the system is asymptotically
+      stable. If any eigenvalue has a positive real part, the system is unstable. Purely imaginary
+      eigenvalues (zero real part) correspond to marginal stability (assuming no repeated roots).
+    keywords: [stability, eigenvalue, autonomous, state matrix, asymptotic stability, real part]
+    related_rules: [rule_033, rule_034]
+    lecture_ref: "Lecture 3"
+
+  # ============================================================
+  # TOPIC 4: Virtual Work & Lagrange
+  # ============================================================
+
+  - id: "rule_015"
+    topic: "virtual_work_lagrange"
+    statement: "In the Principle of Virtual Work, the virtual work done by ideal constraint forces is zero."
+    verdict: true
+    reason: >
+      Ideal constraints (e.g., frictionless surfaces, rigid links, pin joints) enforce geometric
+      conditions on motion. Their constraint forces are always perpendicular to the permissible
+      virtual displacements consistent with the constraints. Therefore, the virtual work
+      δW = F_constraint · δr = 0, allowing constraint forces to drop out of the equations of motion.
+    keywords: [virtual work, constraint forces, ideal constraints, virtual displacement, Lagrange]
+    common_trap: "Students may think internal forces or friction forces are also excluded; only ideal (workless) constraint forces vanish."
+    related_rules: [rule_016, rule_017]
+    lecture_ref: "Lecture 5"
+
+  - id: "rule_016"
+    topic: "virtual_work_lagrange"
+    statement: "Lagrange's equations automatically account for constraint forces in the equations of motion."
+    verdict: false
+    reason: >
+      Lagrange's equations are formulated using generalized coordinates that already satisfy the
+      constraints. Because the generalized coordinates are independent and consistent with
+      constraints, constraint forces do not appear at all in Lagrange's equations (they are
+      automatically eliminated). Lagrange's method gives equations of motion free of constraint
+      forces, which is one of its main advantages.
+    keywords: [Lagrange, constraint forces, generalized coordinates, equations of motion, elimination]
+    common_trap: "Students think constraint forces appear somewhere in Lagrange's formulation; they are fully absent when using proper generalized coordinates."
+    related_rules: [rule_015, rule_017]
+    lecture_ref: "Lecture 5"
+
+  - id: "rule_017"
+    topic: "virtual_work_lagrange"
+    statement: "The number of generalized coordinates needed equals the number of degrees of freedom of the system."
+    verdict: true
+    reason: >
+      Generalized coordinates are a minimal set of independent coordinates that completely
+      describe the configuration of a system. Their number equals the number of degrees of freedom
+      (DOF), which is the number of independent geometric quantities needed to describe the
+      system's position. Choosing more coordinates than DOF would introduce dependencies.
+    keywords: [generalized coordinates, DOF, degrees of freedom, independent, Lagrange]
+    related_rules: [rule_016]
+    lecture_ref: "Lecture 5"
+
+  - id: "rule_018"
+    topic: "virtual_work_lagrange"
+    statement: "The Lagrangian L = T - V is used directly in Lagrange's equations to derive the equations of motion for conservative systems."
+    verdict: true
+    reason: >
+      For a conservative system with kinetic energy T and potential energy V, the Lagrangian L = T - V
+      is defined such that Lagrange's equations d/dt(∂L/∂q_dot_i) - ∂L/∂q_i = 0 yield the correct
+      equations of motion. For non-conservative systems, generalized non-conservative forces Q_i
+      must be added to the right-hand side.
+    keywords: [Lagrangian, kinetic energy, potential energy, conservative, equations of motion]
+    related_rules: [rule_017, rule_019]
+    lecture_ref: "Lecture 5"
+
+  - id: "rule_019"
+    topic: "virtual_work_lagrange"
+    statement: "At an equilibrium point q_e, the generalized force Q_i = -∂V/∂q_i = 0 for all i."
+    verdict: true
+    reason: >
+      At a static equilibrium position, all generalized velocities and accelerations are zero.
+      Lagrange's equations reduce to -∂V/∂q_i = Q_i^nc = 0 for conservative systems, meaning
+      the gradient of potential energy vanishes. This condition defines the equilibrium point and
+      is used to find equilibrium positions analytically.
+    keywords: [equilibrium, potential energy, gradient, static, generalized force]
+    related_rules: [rule_018]
+    lecture_ref: "Lecture 9"
+
+  - id: "rule_020"
+    topic: "virtual_work_lagrange"
+    statement: "The linearized equations of motion about an equilibrium point always have symmetric mass and stiffness matrices."
+    verdict: true
+    reason: >
+      When a system with a well-defined Lagrangian (T and V expressed in generalized coordinates)
+      is linearized about an equilibrium, the resulting mass matrix M = ∂²T/∂q_dot_i∂q_dot_j and
+      stiffness matrix K = ∂²V/∂q_i∂q_j are both symmetric by symmetry of second mixed partial
+      derivatives (Clairaut's theorem). This is a fundamental structural property of Lagrangian
+      mechanics.
+    keywords: [linearization, mass matrix, stiffness matrix, symmetric, Lagrangian, equilibrium]
+    common_trap: "Students may think linearization can produce asymmetric matrices; the Lagrangian always guarantees symmetry."
+    related_rules: [rule_018, rule_019]
+    lecture_ref: "Lecture 9"
+
+  # ============================================================
+  # TOPIC 5: Structural Damping
+  # ============================================================
+
+  - id: "rule_021"
+    topic: "structural_damping"
+    statement: "Structural damping (hysteretic damping) is valid for any arbitrary time-domain excitation."
+    verdict: false
+    reason: >
+      Structural damping is defined through the complex stiffness k(1+jη) where η is the loss
+      factor. This formulation is only meaningful when both the excitation and response are
+      harmonic. For arbitrary (non-harmonic) excitation, structural damping leads to
+      non-causal behavior in the time domain and cannot be used directly. Viscous damping must
+      be used for general time-domain analysis.
+    keywords: [structural damping, hysteretic damping, harmonic, complex stiffness, loss factor, causality]
+    common_trap: "Students apply structural damping to arbitrary time-domain problems; it is only valid under harmonic assumption."
+    related_rules: [rule_022]
+    lecture_ref: "Lecture 8"
+    valid_for: ["harmonic excitation", "steady-state harmonic"]
+    invalid_for: ["transient", "arbitrary excitation", "general time-domain", "free vibration"]
+
+  - id: "rule_021b"
+    topic: "structural_damping"
+    statement: "Structural damping can be used in transient analysis with the same validity as in harmonic analysis."
+    verdict: false
+    reason: >
+      Structural damping is defined through complex stiffness k(1+j*eta), which is
+      only meaningful under harmonic assumptions. Using it in transient analysis leads
+      to non-causal behavior. It is valid only for harmonic/steady-state analysis.
+    keywords: [structural damping, transient, harmonic, validity, same, analysis, used]
+    lecture_ref: "Lecture 8"
+
+  - id: "rule_022"
+    topic: "structural_damping"
+    statement: "The equivalent viscous damping ratio for structural damping is zeta = eta/2, where eta is the loss factor, valid only at resonance (omega = omega_n)."
+    verdict: true
+    reason: >
+      At resonance, the equivalent viscous damping ratio ζ ≈ η/2 is derived by equating energy
+      dissipation per cycle for structural and viscous damping models. Away from resonance, the
+      equivalence breaks down because viscous damping force depends on frequency while structural
+      damping force magnitude is frequency-independent (proportional to displacement amplitude).
+    keywords: [structural damping, loss factor, damping ratio, equivalent viscous, resonance]
+    common_trap: "Students apply the η/2 equivalence at all frequencies; it is only accurate at resonance."
+    related_rules: [rule_021]
+    lecture_ref: "Lecture 8"
+    valid_for: ["harmonic excitation", "at resonance"]
+    invalid_for: ["transient", "non-harmonic", "arbitrary excitation"]
+    trap_patterns:
+      - pattern: "transient|non-harmonic|arbitrary|general"
+        explanation: "Structural damping 등가식은 harmonic excitation에서만 유효, transient/arbitrary에서는 사용 불가"
+
+  - id: "rule_023"
+    topic: "structural_damping"
+    statement: "In structural damping, the damping force magnitude is proportional to the displacement amplitude and independent of frequency."
+    verdict: true
+    reason: >
+      For structural (hysteretic) damping, the complex stiffness is k* = k(1+jη), so the
+      damping force is F_d = jηk*X (complex notation). The magnitude |F_d| = ηk|X| depends
+      only on the displacement amplitude X, not on frequency ω. This contrasts with viscous
+      damping where F_d = cωX, which does depend on frequency.
+    keywords: [structural damping, displacement amplitude, frequency-independent, complex stiffness, viscous comparison]
+    related_rules: [rule_021, rule_022]
+    lecture_ref: "Lecture 8"
+
+  # ============================================================
+  # TOPIC 6: Eigenvalue Problems
+  # ============================================================
+
+  - id: "rule_024"
+    topic: "eigenvalue_problems"
+    statement: "For a symmetric positive definite mass matrix M and symmetric positive semi-definite stiffness matrix K, all eigenvalues of the generalized problem Ku = lambda*Mu are real and non-negative."
+    verdict: true
+    reason: >
+      The generalized eigenvalue problem Ku = λMu with M symmetric positive definite and K symmetric
+      positive semi-definite is a real symmetric problem (can be transformed to standard symmetric
+      form M^{-1/2}KM^{-1/2}v = λv). All eigenvalues of a real symmetric matrix are real. Since K
+      is positive semi-definite, λ = u^T K u / u^T M u ≥ 0. Zero eigenvalues correspond to rigid
+      body modes.
+    keywords: [eigenvalue, symmetric, positive definite, positive semi-definite, generalized EVP, real eigenvalue]
+    common_trap: "Students forget that K being semi-definite (not strictly definite) allows zero eigenvalues for rigid-body modes."
+    related_rules: [rule_025, rule_026]
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_025"
+    topic: "eigenvalue_problems"
+    statement: "Eigenvectors corresponding to distinct eigenvalues of the symmetric generalized eigenvalue problem Ku = lambda*Mu are M-orthogonal."
+    verdict: true
+    reason: >
+      For the generalized EVP Ku_i = λ_i M u_i and Ku_j = λ_j M u_j with λ_i ≠ λ_j, multiplying
+      the first by u_j^T and using symmetry of M and K shows that u_j^T M u_i = 0 (M-orthogonality)
+      and u_j^T K u_i = 0 (K-orthogonality). These orthogonality relations are fundamental to modal
+      analysis and enable decoupling of multi-DOF equations.
+    keywords: [M-orthogonality, K-orthogonality, eigenvectors, distinct eigenvalues, orthogonality, modal]
+    related_rules: [rule_024, rule_026]
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_026"
+    topic: "eigenvalue_problems"
+    statement: "Mass normalization of mode shapes requires u_r^T * M * u_r = 1 for each mode r."
+    verdict: true
+    reason: >
+      Mass normalization (also called mass-orthonormal normalization) scales each eigenvector u_r
+      such that u_r^T M u_r = 1. Under this normalization, U^T M U = I (identity) and U^T K U =
+      diag(ω_n,r^2), where ω_n,r are the natural frequencies. This simplifies modal equations to
+      the standard uncoupled SDOF form η_r'' + ω_n,r^2 η_r = f_r.
+    keywords: [mass normalization, mode shape, mass-orthonormal, modal matrix, identity, natural frequency]
+    common_trap: "Students sometimes normalize by the largest component or Euclidean norm, but mass normalization uses the M-inner product."
+    related_rules: [rule_025, rule_027]
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_027"
+    topic: "eigenvalue_problems"
+    statement: "For a symmetric eigenvalue problem, the number of distinct eigenvalues can be less than the matrix dimension."
+    verdict: true
+    reason: >
+      Repeated eigenvalues are possible for symmetric matrices. When an eigenvalue has algebraic
+      multiplicity greater than one, the corresponding eigenspace can have dimension equal to
+      the multiplicity (geometric multiplicity = algebraic multiplicity for symmetric matrices).
+      This means an n×n symmetric matrix always has n linearly independent eigenvectors, but may
+      have fewer than n distinct eigenvalues.
+    keywords: [repeated eigenvalues, symmetric matrix, algebraic multiplicity, geometric multiplicity, eigenspace]
+    related_rules: [rule_024, rule_025]
+    lecture_ref: "Lecture 11"
+
+  # ============================================================
+  # TOPIC 7: Modal Analysis
+  # ============================================================
+
+  - id: "rule_028"
+    topic: "modal_analysis"
+    statement: "Modal superposition is exact (not approximate) for linear undamped or proportionally damped systems."
+    verdict: true
+    reason: >
+      For linear systems with M and K symmetric, and C proportional to M and K (Rayleigh damping),
+      the modal transformation q = U*eta completely decouples the equations into n independent
+      SDOF equations. The modal superposition q(t) = sum_r u_r * eta_r(t) is therefore exact,
+      not an approximation. Approximation only arises when modal truncation is used.
+    keywords: [modal superposition, exact, proportional damping, undamped, decoupling, SDOF]
+    common_trap: "Students think modal analysis is inherently approximate; it is exact without truncation for systems meeting the proportional damping condition."
+    related_rules: [rule_026, rule_029, rule_030]
+    lecture_ref: "Lecture 11"
+    valid_for: ["undamped system", "proportionally damped system"]
+    invalid_for: ["nonproportionally damped system"]
+
+  - id: "rule_029"
+    topic: "modal_analysis"
+    statement: "The physical response q(t) can be reconstructed from modal coordinates as q(t) = U * eta(t), where U is the modal matrix."
+    verdict: true
+    reason: >
+      The modal matrix U = [u_1, u_2, ..., u_n] contains the mass-normalized eigenvectors as
+      columns. The modal coordinate transformation q = U*eta converts physical coordinates to
+      modal coordinates. Each column u_r scales the contribution of mode r to the physical
+      response. The reconstruction q(t) = U*eta(t) sums all modal contributions.
+    keywords: [modal matrix, modal coordinates, physical response, reconstruction, eigenvectors, superposition]
+    related_rules: [rule_026, rule_028]
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_030"
+    topic: "modal_analysis"
+    statement: "Modal analysis for a nonproportionally damped system results in decoupled SDOF equations in modal coordinates."
+    verdict: false
+    reason: >
+      Nonproportional damping means C ≠ αM + βK, so the modal damping matrix U^T C U is NOT
+      diagonal. Off-diagonal terms remain, coupling the modal equations. To properly analyze a
+      nonproportionally damped system, one must use a state-space formulation with a 2n×2n
+      eigenvalue problem, yielding complex eigenvalues and complex mode shapes.
+    keywords: [nonproportional damping, coupling, modal analysis, complex modes, state-space, non-diagonal]
+    common_trap: "Students assume modal analysis always decouples equations; this only works for proportional (Rayleigh) damping."
+    related_rules: [rule_028, rule_038, rule_039]
+    lecture_ref: "Lecture 12"
+
+  # ============================================================
+  # TOPIC 8: Stability
+  # ============================================================
+
+  - id: "rule_031"
+    topic: "stability"
+    statement: "A system is asymptotically stable if all eigenvalues of its state matrix A have strictly negative real parts."
+    verdict: true
+    reason: >
+      Asymptotic stability means all solutions converge to zero as t → ∞. The solution involves
+      terms like e^(λ_k t) where λ_k are eigenvalues of A. For e^(λ_k t) → 0, we need
+      Re(λ_k) < 0 for all k. If all eigenvalues have negative real parts, every mode decays
+      exponentially, guaranteeing asymptotic stability.
+    keywords: [asymptotic stability, eigenvalue, negative real part, state matrix, convergence]
+    related_rules: [rule_032, rule_033, rule_014]
+    lecture_ref: "Lecture 10"
+
+  - id: "rule_032"
+    topic: "stability"
+    statement: "A system with a purely imaginary eigenvalue (Re(lambda) = 0) is always marginally stable."
+    verdict: false
+    reason: >
+      Purely imaginary eigenvalues give marginally stable behavior only if they are simple (non-repeated).
+      If a purely imaginary eigenvalue is repeated, the Jordan block structure gives solutions
+      growing like t*e^(0*t) = t, which is unbounded — hence unstable. Simple purely imaginary
+      eigenvalues produce sustained oscillations, which is marginal stability.
+    keywords: [marginal stability, purely imaginary eigenvalue, repeated eigenvalue, Jordan block, bounded]
+    common_trap: "Students assume all purely imaginary eigenvalues mean marginal stability; repeated purely imaginary eigenvalues lead to instability."
+    related_rules: [rule_031, rule_033]
+    lecture_ref: "Lecture 10"
+
+  - id: "rule_033"
+    topic: "stability"
+    statement: "For an undamped conservative system Mq'' + Kq = 0, if K is positive definite, all eigenvalues are purely imaginary and the system is marginally stable."
+    verdict: true
+    reason: >
+      With M symmetric positive definite and K symmetric positive definite, the eigenvalues of the
+      characteristic equation are λ = jω_n (purely imaginary), giving undamped oscillation. There
+      is no energy dissipation, so amplitudes remain constant — this is marginal (Lyapunov) stability.
+      Adding even small damping makes the system asymptotically stable.
+    keywords: [undamped, conservative, positive definite, purely imaginary, marginal stability, Lyapunov]
+    related_rules: [rule_031, rule_032, rule_024]
+    lecture_ref: "Lecture 10"
+
+  - id: "rule_034"
+    topic: "stability"
+    statement: "If the stiffness matrix K has a negative eigenvalue (indefinite), the equilibrium is unstable."
+    verdict: true
+    reason: >
+      A negative eigenvalue of K means there exists a direction in which the potential energy
+      decreases as the system moves away from equilibrium. This corresponds to a saddle point or
+      local maximum of V, so the equilibrium is unstable. The associated mode will have a real
+      positive eigenvalue in the system (divergence instability), not oscillatory.
+    keywords: [stiffness matrix, negative eigenvalue, indefinite, unstable, potential energy, saddle point]
+    related_rules: [rule_033, rule_019]
+    lecture_ref: "Lecture 10"
+
+  - id: "rule_035"
+    topic: "stability"
+    statement: "Rayleigh's criterion states that the system Mq'' + Kq = 0 is stable if and only if M and K are both positive definite."
+    verdict: false
+    reason: >
+      The correct condition for stability (no unbounded solutions) is that M is positive definite
+      and K is positive semi-definite. Positive semi-definite K allows zero eigenvalues (rigid body
+      modes) which give constant-velocity (not exponentially growing) motion, still bounded.
+      Positive definiteness of K (strictly) gives marginal stability with oscillation.
+      The system is unstable only if K has negative eigenvalues.
+    keywords: [Rayleigh criterion, positive definite, positive semi-definite, stability, rigid body modes]
+    common_trap: "Students state that K must be positive definite for stability; positive semi-definite K is sufficient (allows rigid body modes)."
+    related_rules: [rule_033, rule_034, rule_024]
+    lecture_ref: "Lecture 10"
+
+  # ============================================================
+  # TOPIC 9: Gyroscopic & Nonconservative Systems
+  # ============================================================
+
+  - id: "rule_036"
+    topic: "gyroscopic_nonconservative"
+    statement: "Gyroscopic forces do not do work on the system; they only redistribute energy among modes."
+    verdict: true
+    reason: >
+      The gyroscopic matrix G is skew-symmetric (G^T = -G). The power delivered by gyroscopic
+      forces is P = q_dot^T G q_dot. Since G is skew-symmetric, q_dot^T G q_dot = 0 identically
+      for any vector q_dot. Therefore, gyroscopic forces do no work and conserve energy, though
+      they can couple different degrees of freedom and alter the system's dynamic behavior.
+    keywords: [gyroscopic force, skew-symmetric, energy, power, work, conservation]
+    common_trap: "Students think gyroscopic forces change total energy because they appear in equations of motion; they do not since G is skew-symmetric."
+    related_rules: [rule_037, rule_040]
+    lecture_ref: "Lecture 12"
+
+  - id: "rule_037"
+    topic: "gyroscopic_nonconservative"
+    statement: "For gyroscopic systems, eigenvalues always occur in complex conjugate pairs."
+    verdict: true
+    reason: >
+      The state-space formulation of a gyroscopic system yields a real-coefficient characteristic
+      polynomial. By the complex conjugate root theorem, complex roots of a real polynomial always
+      occur in conjugate pairs λ = α ± jβ. The gyroscopic terms make the system non-self-adjoint,
+      giving complex eigenvalues even without damping, but conjugate pairing is always preserved.
+    keywords: [gyroscopic, complex conjugate pairs, eigenvalue, characteristic polynomial, complex modes]
+    related_rules: [rule_036, rule_041]
+    lecture_ref: "Lecture 12"
+
+  - id: "rule_038"
+    topic: "gyroscopic_nonconservative"
+    statement: "For a nonproportionally damped or gyroscopic system, left and right eigenvectors are generally different."
+    verdict: true
+    reason: >
+      For a symmetric system (A = A^T), left and right eigenvectors coincide. However, for
+      asymmetric matrices arising from gyroscopic or nonconservative systems, the left eigenvectors
+      (eigenvectors of A^T) differ from the right eigenvectors (eigenvectors of A). The left
+      eigenvectors are needed for modal expansion via bi-orthogonality.
+    keywords: [left eigenvector, right eigenvector, asymmetric, gyroscopic, nonconservative, bi-orthogonality]
+    common_trap: "Students apply standard modal orthogonality to asymmetric systems; these require distinct left and right eigenvectors."
+    related_rules: [rule_039, rule_041]
+    lecture_ref: "Lecture 13"
+    trap_patterns:
+      - pattern: "cannot.*diagonaliz|diagonaliz.*impossible|cannot.*decouple"
+        explanation: "Gyroscopic/비비례 감쇠 시스템도 bi-orthogonality로 대각화 가능 (좌/우 고유벡터 사용)"
+
+  - id: "rule_039"
+    topic: "gyroscopic_nonconservative"
+    statement: "Bi-orthogonality states that the left eigenvector phi_j^T and right eigenvector psi_i satisfy phi_j^T * A * psi_i = lambda_i * delta_ij."
+    verdict: true
+    reason: >
+      For a general (possibly asymmetric) matrix A with right eigenvectors psi_i (A*psi_i = λ_i*psi_i)
+      and left eigenvectors phi_j (phi_j^T*A = λ_j*phi_j^T), bi-orthogonality gives phi_j^T*psi_i = 0
+      when i ≠ j (for distinct eigenvalues). This generalizes standard orthogonality to
+      non-symmetric systems and is essential for modal expansion of nonproportionally damped and
+      gyroscopic systems.
+    keywords: [bi-orthogonality, left eigenvector, right eigenvector, modal expansion, asymmetric, Kronecker delta]
+    related_rules: [rule_038, rule_040]
+    lecture_ref: "Lecture 13"
+
+  - id: "rule_040"
+    topic: "gyroscopic_nonconservative"
+    statement: "Nonconservative positional forces (circulatory forces) can destabilize an otherwise stable conservative system."
+    verdict: true
+    reason: >
+      Nonconservative positional forces arise from asymmetric stiffness matrices N (N^T ≠ N).
+      They can transfer energy into the system and cause flutter (oscillatory) instability even
+      when the symmetric part of the stiffness matrix is positive definite. This phenomenon
+      (Ziegler's paradox) shows that damping can even destabilize a system with circulatory forces
+      under certain conditions.
+    keywords: [nonconservative, circulatory force, flutter, instability, asymmetric stiffness, Ziegler]
+    common_trap: "Students assume positive definite symmetric stiffness guarantees stability; nonconservative forces can break this."
+    related_rules: [rule_034, rule_036, rule_038]
+    lecture_ref: "Lecture 13"
+
+  - id: "rule_041"
+    topic: "gyroscopic_nonconservative"
+    statement: "For a gyroscopic system without damping, if the gyroscopic parameter is large enough, an otherwise unstable system can become stable."
+    verdict: true
+    reason: >
+      Gyroscopic stabilization is a well-known phenomenon. A spinning top or gyroscope can be
+      stabilized against gravity (which would otherwise make it fall) by gyroscopic action. In
+      structural dynamics, a system with an indefinite stiffness matrix can be gyroscopically
+      stabilized if the gyroscopic parameter exceeds a critical threshold. However, adding
+      dissipation can destroy this gyroscopic stabilization (Kelvin-Tait-Chetaev theorem).
+    keywords: [gyroscopic stabilization, indefinite stiffness, spinning, critical threshold, Kelvin-Tait-Chetaev]
+    common_trap: "Students think instability from negative stiffness is always permanent; gyroscopic forces can counteract it above a threshold speed."
+    related_rules: [rule_036, rule_034, rule_040]
+    lecture_ref: "Lecture 12"
+
+  # ============================================================
+  # TOPIC 10: Damping (Proportional, Rayleigh, Nonproportional)
+  # ============================================================
+
+  - id: "rule_042"
+    topic: "damping"
+    statement: "Proportional (Rayleigh) damping satisfies C = alpha*M + beta*K, which ensures the modal damping matrix is diagonal."
+    verdict: true
+    reason: >
+      Under Rayleigh damping C = αM + βK, the modal damping matrix is
+      U^T C U = α(U^T M U) + β(U^T K U) = αI + β*diag(ω_n,r^2) = diagonal.
+      This makes the equations of motion fully decoupled in modal coordinates. Each mode has
+      its own modal damping ratio ζ_r = (α + β*ω_n,r^2)/(2*ω_n,r).
+    keywords: [Rayleigh damping, proportional damping, diagonal, modal decoupling, alpha, beta]
+    related_rules: [rule_030, rule_043, rule_044]
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_043"
+    topic: "damping"
+    statement: "The modal damping ratio for Rayleigh damping is zeta_r = (alpha + beta*omega_n_r^2) / (2*omega_n_r)."
+    verdict: true
+    reason: >
+      From the decoupled modal equation η_r'' + 2ζ_r ω_n,r η_r' + ω_n,r^2 η_r = 0, the damping
+      coefficient comes from U^T C U = αI + β*diag(ω_n,r^2), giving the (r,r) entry as
+      α + β*ω_n,r^2. Comparing to 2ζ_r ω_n,r yields ζ_r = (α + β*ω_n,r^2)/(2*ω_n,r).
+      This shows that α controls low-frequency damping and β controls high-frequency damping.
+    keywords: [modal damping ratio, Rayleigh damping, alpha, beta, natural frequency, formula]
+    common_trap: "Students often forget the ω_n,r in the denominator or mix up which coefficient controls low vs high frequency modes."
+    related_rules: [rule_042]
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_044"
+    topic: "damping"
+    statement: "A nonproportionally damped system can always be analyzed using real-valued mode shapes."
+    verdict: false
+    reason: >
+      Real-valued mode shapes apply only to undamped or proportionally damped systems. For
+      nonproportional damping, the system is formulated as a 2n state-space eigenvalue problem
+      Ay = λy, where A is not symmetric. The eigenvectors (mode shapes) are complex, and physical
+      meaning requires careful interpretation of amplitude and phase information carried in the
+      complex mode shapes.
+    keywords: [nonproportional damping, complex mode shapes, real mode shapes, state-space, 2n eigenvalue problem]
+    common_trap: "Students use real mode shapes from undamped analysis on nonproportionally damped systems; complex modes must be used."
+    related_rules: [rule_030, rule_038, rule_042]
+    lecture_ref: "Lecture 12"
+
+  - id: "rule_045"
+    topic: "damping"
+    statement: "Critical damping ratio zeta = 1 marks the boundary between underdamped (oscillatory) and overdamped (non-oscillatory) free response."
+    verdict: true
+    reason: >
+      For an SDOF system with damping ratio ζ: if ζ < 1, eigenvalues are complex conjugates
+      (underdamped — oscillatory decay); if ζ = 1, eigenvalues are real and equal (critically
+      damped — fastest non-oscillatory return); if ζ > 1, eigenvalues are distinct negative reals
+      (overdamped — exponential decay without oscillation). ζ = 1 is the exact boundary.
+    keywords: [critical damping, damping ratio, underdamped, overdamped, oscillatory, eigenvalue]
+    related_rules: [rule_031, rule_043]
+    lecture_ref: "Lecture 8"
+
+  - id: "rule_046"
+    topic: "damping"
+    statement: "For an underdamped SDOF system, the damped natural frequency omega_d = omega_n * sqrt(1 - zeta^2) is always less than the undamped natural frequency omega_n."
+    verdict: true
+    reason: >
+      Since ζ ∈ (0, 1) for underdamped systems, sqrt(1 - ζ^2) < 1, so ω_d < ω_n. Damping reduces
+      the oscillation frequency. At ζ = 0 (undamped), ω_d = ω_n. At ζ → 1 (critical), ω_d → 0.
+      The damped natural frequency represents the actual frequency of oscillation observed in
+      the free response.
+    keywords: [damped natural frequency, undamped natural frequency, damping ratio, underdamped, frequency reduction]
+    related_rules: [rule_045]
+    lecture_ref: "Lecture 8"
+
+  # ============================================================
+  # TOPIC 11: Additional Key Concepts (Natural Frequency, DOF, etc.)
+  # ============================================================
+
+  - id: "rule_047"
+    topic: "natural_frequency"
+    statement: "The natural frequency of an undamped SDOF system depends only on mass m and stiffness k, not on initial conditions or amplitude of oscillation."
+    verdict: true
+    reason: >
+      From the undamped SDOF equation m*x'' + k*x = 0, the natural frequency is ω_n = sqrt(k/m).
+      This depends only on the system parameters (mass and stiffness), not on how the system is
+      excited or the amplitude of motion. Initial conditions determine amplitude and phase but
+      never the frequency of oscillation. This is a key property of linear systems.
+    keywords: [natural frequency, undamped, SDOF, mass, stiffness, initial conditions, amplitude independence]
+    common_trap: "Students sometimes think larger initial displacements change the natural frequency; they do not in linear systems."
+    related_rules: [rule_033]
+    lecture_ref: "Lecture 2"
+
+  - id: "rule_048"
+    topic: "natural_frequency"
+    statement: "An n-DOF system always has exactly n natural frequencies."
+    verdict: true
+    reason: >
+      An n-DOF system has an n×n mass matrix M and n×n stiffness matrix K. The generalized
+      eigenvalue problem Ku = λMu is of degree n, yielding exactly n eigenvalues (counting
+      multiplicity). Each eigenvalue λ_r = ω_n,r^2 gives one natural frequency. For positive
+      definite M and K, all n natural frequencies are positive real numbers.
+    keywords: [n-DOF, natural frequencies, eigenvalues, counting, degrees of freedom, multi-DOF]
+    related_rules: [rule_024, rule_027]
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_049"
+    topic: "linear_systems"
+    statement: "A linear time-invariant (LTI) system is fully characterized by its impulse response h(t) in the time domain."
+    verdict: true
+    reason: >
+      For an LTI system, the response to any input f(t) is x(t) = h(t)*f(t) (convolution). If h(t)
+      is known, then the response to any arbitrary input can be computed via convolution. The impulse
+      response encodes the complete dynamic behavior of the system, including all natural frequencies,
+      damping ratios, and mode shapes. This is why impulse testing is used in experimental dynamics.
+    keywords: [LTI, impulse response, time-invariant, characterization, convolution, complete description]
+    related_rules: [rule_006, rule_009]
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_050"
+    topic: "virtual_work_lagrange"
+    statement: "D'Alembert's principle states that the system is in dynamic equilibrium when inertia forces are included with applied forces."
+    verdict: true
+    reason: >
+      D'Alembert's principle reframes Newton's second law (F - ma = 0) so that the inertia term
+      -ma is treated as a fictitious 'd'Alembert force'. The system then satisfies a static
+      equilibrium condition: sum of (applied forces + inertia forces) = 0. This principle bridges
+      statics and dynamics, and together with virtual work leads to Lagrange's equations.
+    keywords: [D'Alembert, inertia force, dynamic equilibrium, virtual work, Lagrange, Newton]
+    related_rules: [rule_015, rule_016]
+    lecture_ref: "Lecture 5"
+
+  - id: "rule_051"
+    topic: "modal_analysis"
+    statement: "The modal matrix U satisfies U^T * M * U = I and U^T * K * U = diag(omega_n_r^2) when mass-normalized."
+    verdict: true
+    reason: >
+      Mass normalization imposes u_r^T M u_r = 1 and the M-orthogonality u_r^T M u_s = 0 for r≠s
+      ensures U^T M U = I. From Ku_r = ω_n,r^2 M u_r and M-orthonormality, U^T K U gives a
+      diagonal matrix with entries ω_n,r^2. These two relations are the defining properties of
+      the mass-normalized modal matrix and are used to verify correct computation.
+    keywords: [modal matrix, mass normalization, orthogonality, identity, diagonal, natural frequency squared]
+    common_trap: "Students forget that the K-orthogonality gives omega_n^2 (frequency squared), not omega_n."
+    related_rules: [rule_026, rule_028, rule_029]
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_052"
+    topic: "state_equations"
+    statement: "The state-space formulation x_dot = Ax + Bf is equivalent to the original ODE system and introduces no approximation."
+    verdict: true
+    reason: >
+      The first-order state-space form x_dot = Ax + Bf is obtained by an exact algebraic
+      rearrangement of the original n-th order ODE system. No approximations are made. All
+      information in the original higher-order system is preserved. The transformation only
+      changes the mathematical representation, not the physics or accuracy.
+    keywords: [state-space, first-order form, equivalent, exact, algebraic, no approximation]
+    related_rules: [rule_011, rule_012]
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_053"
+    topic: "eigenvalue_problems"
+    statement: "For the standard symmetric eigenvalue problem Av = lambda*v where A is real symmetric, all eigenvalues are real and eigenvectors can be chosen to be real and orthogonal."
+    verdict: true
+    reason: >
+      The spectral theorem guarantees that a real symmetric matrix has all real eigenvalues and
+      a complete set of orthonormal real eigenvectors. The eigendecomposition A = V*diag(λ)*V^T
+      always exists with real V. This property extends to the generalized EVP when M is positive
+      definite, ensuring real natural frequencies and real mode shapes for conservative vibration
+      problems.
+    keywords: [symmetric matrix, real eigenvalues, real eigenvectors, orthogonal, spectral theorem]
+    related_rules: [rule_024, rule_025]
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_054"
+    topic: "stability"
+    statement: "Lyapunov's direct method can determine stability without explicitly solving the equations of motion."
+    verdict: true
+    reason: >
+      Lyapunov's direct (second) method uses a Lyapunov function V(x) (a positive definite scalar
+      function analogous to generalized energy). If V_dot ≤ 0 along trajectories, the equilibrium
+      is stable; if V_dot < 0 (strictly), the equilibrium is asymptotically stable. No explicit
+      solution of the differential equations is required, making this method powerful for nonlinear
+      and high-dimensional systems.
+    keywords: [Lyapunov, stability, direct method, energy function, positive definite, asymptotic stability]
+    related_rules: [rule_031, rule_033]
+    lecture_ref: "Lecture 10"
+
+  - id: "rule_055"
+    topic: "gyroscopic_nonconservative"
+    statement: "For a system with gyroscopic matrix G, the equations of motion take the form M*q'' + G*q' + K*q = f, where G is skew-symmetric."
+    verdict: true
+    reason: >
+      Gyroscopic forces arise from Coriolis-type terms in rotating reference frames. They are
+      velocity-dependent and enter the equations of motion as G*q_dot terms. The gyroscopic
+      matrix G is skew-symmetric (G^T = -G) by energy conservation arguments — if G were not
+      skew-symmetric, the gyroscopic terms would do net work. The skew-symmetry is the defining
+      property that distinguishes gyroscopic forces from damping forces.
+    keywords: [gyroscopic matrix, skew-symmetric, equations of motion, Coriolis, rotating frame, velocity-dependent]
+    related_rules: [rule_036, rule_041]
+    lecture_ref: "Lecture 12"
+
+  - id: "rule_056"
+    topic: "damping"
+    statement: "Two Rayleigh damping coefficients alpha and beta can be uniquely determined if the damping ratios at two different natural frequencies are specified."
+    verdict: true
+    reason: >
+      The modal damping ratio formula ζ_r = (α + β*ω_n,r^2)/(2*ω_n,r) gives a linear system of
+      two equations in two unknowns (α, β) when two pairs (ζ_r, ω_n,r) are known. Provided the
+      two natural frequencies are distinct, this system has a unique solution. This is how Rayleigh
+      damping is calibrated in practice: match measured damping at two target frequencies.
+    keywords: [Rayleigh damping, two coefficients, damping ratio, two frequencies, calibration, unique solution]
+    common_trap: "Students may not realize Rayleigh damping is calibrated by choosing exactly two frequencies; damping at all other frequencies is then determined."
+    related_rules: [rule_042, rule_043]
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_057"
+    topic: "frf_convolution"
+    statement: "The resonance frequency of a damped SDOF system under harmonic forcing occurs at omega = omega_n * sqrt(1 - 2*zeta^2), not at omega_n."
+    verdict: true
+    reason: >
+      The magnitude of the FRF |H(ω)| = 1/sqrt((k-mω^2)^2 + (cω)^2) is maximized by differentiating
+      with respect to ω and setting to zero. The result is ω_peak = ω_n*sqrt(1 - 2ζ^2), which is
+      less than ω_n for any ζ > 0. This peak frequency differs from both the undamped natural
+      frequency ω_n and the damped natural frequency ω_d = ω_n*sqrt(1-ζ^2).
+    keywords: [resonance frequency, damped SDOF, FRF magnitude, peak frequency, harmonic forcing]
+    common_trap: "Students confuse ω_d (free vibration frequency), ω_n (undamped), and ω_peak (resonance under forcing) — these are three different quantities."
+    related_rules: [rule_046, rule_008]
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_058"
+    topic: "linear_systems"
+    statement: "The zero-input response (homogeneous solution) and zero-state response (particular solution) can be superposed to give the total response for a linear system."
+    verdict: true
+    reason: >
+      For a linear system, total response = zero-input response (due to initial conditions with zero
+      forcing) + zero-state response (due to forcing with zero initial conditions). This decomposition
+      is valid by the superposition principle: linearity allows independent computation of each
+      component. The total response is their sum. This is the basis of modal analysis and
+      Duhamel's integral.
+    keywords: [zero-input response, zero-state response, superposition, homogeneous, particular, total response]
+    related_rules: [rule_003, rule_006]
+    lecture_ref: "Lecture 2"
+
+  - id: "rule_059"
+    topic: "virtual_work_lagrange"
+    statement: "Hamilton's principle states that the actual path of a conservative system minimizes (or makes stationary) the action integral integral(T - V) dt between two time points."
+    verdict: true
+    reason: >
+      Hamilton's principle is a variational principle: of all possible paths between two fixed
+      configurations at t1 and t2, the actual motion makes the action S = integral(L dt) = integral(T-V) dt
+      stationary (δS = 0). This is equivalent to Lagrange's equations for conservative systems and
+      provides a powerful global perspective on dynamics. For non-conservative systems, virtual
+      work of non-conservative forces must be included.
+    keywords: [Hamilton's principle, action integral, stationary, variational, Lagrangian, conservative]
+    related_rules: [rule_018, rule_015]
+    lecture_ref: "Lecture 5"
+
+  - id: "rule_060"
+    topic: "eigenvalue_problems"
+    statement: "Rayleigh's quotient R(v) = (v^T K v)/(v^T M v) achieves its minimum value at the lowest natural frequency squared (omega_1^2) when v is the first mode shape u_1."
+    verdict: true
+    reason: >
+      Rayleigh's quotient is bounded: ω_1^2 ≤ R(v) ≤ ω_n^2 for any nonzero vector v. The minimum
+      is attained when v equals the first mode shape u_1, giving R(u_1) = ω_1^2. The maximum is
+      attained at the highest mode. This property is used in the Rayleigh-Ritz method to get
+      upper bounds on natural frequencies and in sensitivity analysis.
+    keywords: [Rayleigh quotient, minimum, first mode, natural frequency, bound, Rayleigh-Ritz]
+    common_trap: "Students sometimes state Rayleigh's quotient gives the exact natural frequency for any vector; it only does so for actual mode shapes."
+    related_rules: [rule_024, rule_026]
+    lecture_ref: "Lecture 11"
+
+  # --- Lyapunov stability conditions ---
+
+  - id: "rule_061"
+    topic: "stability"
+    statement: "If a Lyapunov function V(x) is positive definite and its time derivative V_dot is negative definite, the equilibrium is asymptotically stable."
+    verdict: true
+    reason: >
+      Lyapunov's second (direct) method: Choose V(x) positive definite (V>0 for x!=0, V(0)=0).
+      If dV/dt < 0 along all nonzero trajectories (negative definite), the equilibrium is
+      asymptotically stable. Equivalently, a negative definite V with positive definite V_dot
+      (using W=-V as Lyapunov function) also proves asymptotic stability. The key insight is
+      that energy-like functions must be strictly decreasing for the system to converge.
+    keywords: [Lyapunov, positive definite, negative definite, asymptotic stability, stability,
+               time derivative, energy function, V_dot, direct method]
+    common_trap: "Students confuse V_dot <= 0 (stable) with V_dot < 0 (asymptotically stable). Only strict negativity guarantees convergence."
+    related_rules: [rule_054, rule_031]
+    lecture_ref: "Lecture 10"
+
+  - id: "rule_062"
+    topic: "stability"
+    statement: "A negative definite function with positive definite time derivative indicates asymptotic stability by Lyapunov's theorem."
+    verdict: true
+    reason: >
+      If W(x) is negative definite (W<0 for x!=0) and dW/dt is positive definite (dW/dt>0),
+      then V(x) = -W(x) is positive definite with dV/dt = -dW/dt negative definite. This is
+      the standard Lyapunov asymptotic stability condition applied to V = -W. The sign convention
+      is simply reversed but the conclusion is the same: the equilibrium is asymptotically stable.
+    keywords: [Lyapunov, negative definite, positive definite, asymptotic stability, stability,
+               time derivative, asymptotic, definite function, positive time derivative]
+    common_trap: "The unusual sign convention (negative V, positive V_dot) is equivalent to the standard form via W = -V."
+    related_rules: [rule_061, rule_054]
+    lecture_ref: "Lecture 10"
+
+  # --- Additional rules for 60-question T/F coverage ---
+
+  - id: "rule_063"
+    topic: "linear_systems"
+    statement: "A nonlinear system violates at least one of homogeneity or additivity, not necessarily both."
+    verdict: true
+    reason: >
+      A system is nonlinear if it fails either homogeneity or additivity (or both).
+      Violating just one is sufficient. The trap is the word 'both simultaneously'.
+    keywords: [nonlinear, homogeneity, additivity, violate, both, simultaneously]
+    trap_patterns:
+      - pattern: "must.*violate.*both|both.*simultaneously"
+        explanation: "둘 다 동시에 깨질 필요 없다. 하나만 깨져도 nonlinear이다."
+    lecture_ref: "Lecture 2"
+
+  - id: "rule_064"
+    topic: "frf_convolution"
+    statement: "The FRF and convolution methods apply only to forced vibration, not to free vibration from initial conditions alone."
+    verdict: true
+    reason: >
+      Convolution integral and FRF multiplication are tools for computing the forced
+      response to an external excitation. Free vibration (initial conditions only) is
+      the homogeneous solution and does not use these methods.
+    keywords: [FRF, convolution, initial conditions, free vibration, forced vibration, response]
+    trap_patterns:
+      - pattern: "initial\\s+condition.*only|only.*initial"
+        explanation: "FRF/convolution은 forced response 전용이다. IC only는 homogeneous solution을 사용해야 한다."
+      - pattern: "free\\s+vibration|free\\s+response"
+        explanation: "FRF/convolution은 forced vibration에만 적용된다."
+    valid_for: ["forced vibration", "forced response"]
+    invalid_for: ["initial conditions only", "free vibration"]
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_064b"
+    topic: "state_equations"
+    statement: "A second-order linear MIMO system with N degrees of freedom can always be rewritten as a first-order state equation of dimension N."
+    verdict: false
+    reason: >
+      A second-order N-DOF system requires 2N state variables (displacements and
+      velocities). The state equation dimension is 2N, not N. This is the classic
+      trap from the 2025 midterm.
+    keywords: [second-order, MIMO, dimension, always, rewritten]
+    key_quantities:
+      state_dimension: "n"
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_065"
+    topic: "state_equations"
+    statement: "A second-order N-DOF vibration system can be rewritten as a first-order state equation of dimension 2N."
+    verdict: true
+    reason: >
+      For a second-order system (p=2), each of the N DOFs contributes 2 state variables
+      (displacement and velocity), giving 2N total. This is a special case of the general
+      p*n formula.
+    keywords: [second-order, state equation, 2N, dimension, DOF, first-order, vibration, rewritten, linear]
+    trap_patterns:
+      - pattern: "dimension\\s+N\\b(?!.*2)|\\bN[\\s-]*dimensional(?!.*2)"
+        explanation: "2차 N-DOF 시스템의 상태방정식 차원은 N이 아니라 2N이다."
+    key_quantities:
+      state_dimension: "2n"
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_066"
+    topic: "state_equations"
+    statement: "The transition matrix preserves the eigenvalue structure of the system matrix A."
+    verdict: true
+    reason: >
+      The transition matrix e^(At) does not change the eigenvalues of A. If lambda is
+      an eigenvalue of A, then e^(lambda*t) is the corresponding eigenvalue of e^(At).
+      The stability information is preserved, not altered.
+    keywords: [transition matrix, eigenvalue, change, system matrix, preserve, matrix exponential]
+    trap_patterns:
+      - pattern: "change.*eigenvalue|eigenvalue.*change"
+        explanation: "전이행렬은 고유값을 변경하지 않고 보존한다."
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_067"
+    topic: "generalized_functions"
+    statement: "The unit ramp function is the integral of the unit step function."
+    verdict: true
+    reason: >
+      The hierarchy is: impulse -> step -> ramp (each is the integral of the previous).
+      So ramp = integral of step, and step = integral of impulse.
+      Derivative of step = impulse.
+    keywords: [ramp, step, derivative, integral, impulse, Dirac delta]
+    trap_patterns:
+      - pattern: "ramp.*derivative.*step|derivative.*step.*ramp"
+        explanation: "ramp은 step의 적분이다. step의 미분은 impulse이다."
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_067b"
+    topic: "generalized_functions"
+    statement: "The unit step function is the time integral of the Dirac delta function."
+    verdict: true
+    reason: >
+      u(t) = integral of delta(tau) from -inf to t. The step function collects
+      the area under the impulse, transitioning from 0 to 1 at t=0.
+    keywords: [step, integral, Dirac delta, impulse, time integral]
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_068"
+    topic: "impulse_response"
+    statement: "For a second-order system, a unit impulse input is equivalent to an initial velocity of magnitude 1/m."
+    verdict: true
+    reason: >
+      For m*x'' + c*x' + k*x = delta(t), the impulse creates a jump in velocity:
+      x'(0+) = 1/m. Displacement remains continuous.
+    keywords: [impulse, second-order, velocity, 1/m, jump, initial velocity, magnitude]
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_068b"
+    topic: "impulse_response"
+    statement: "For a first-order system, a unit impulse input is equivalent to an initial displacement of magnitude 1/c."
+    verdict: true
+    reason: >
+      For c*x' + k*x = delta(t), the impulse creates a jump in displacement:
+      x(0+) = 1/c.
+    keywords: [impulse, first-order, displacement, 1/c, initial displacement, magnitude]
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_068c"
+    topic: "impulse_response"
+    statement: "For a second-order system, a unit impulse input produces a displacement jump of magnitude 1/k."
+    verdict: false
+    reason: >
+      The impulse creates a velocity jump of 1/m, not a displacement jump.
+      1/k is the static deflection under unit force, unrelated to impulse response.
+    keywords: [impulse, second-order, displacement, 1/k, initial displacement, magnitude, equivalent]
+    trap_patterns:
+      - pattern: "initial\\s+displacement.*1/k|displacement.*magnitude.*1/k"
+        explanation: "impulse는 속도 점프(1/m)를 만든다. 변위 점프(1/k)가 아니다."
+      - pattern: "second.order.*displacement.*1/k|second.order.*impulse.*displacement"
+        explanation: "2차계에서 impulse는 변위가 아니라 속도 점프를 생성한다."
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_069"
+    topic: "harmonic_response"
+    statement: "The damped natural frequency of an underdamped system is always less than the undamped natural frequency."
+    verdict: true
+    reason: >
+      omega_d = omega_n * sqrt(1 - zeta^2). Since 0 < zeta < 1 for underdamped,
+      sqrt(1-zeta^2) < 1, so omega_d < omega_n always.
+    keywords: [damped natural frequency, undamped natural frequency, larger, smaller, underdamped, damped]
+    trap_patterns:
+      - pattern: "larger\\s+than.*undamped|damped.*larger|damped.*greater|larger\\s+than\\s+the\\s+undamped"
+        explanation: "감쇠 고유진동수는 항상 비감쇠 고유진동수보다 작다 (omega_d < omega_n)."
+      - pattern: "damped.*frequency.*larger|damped.*frequency.*greater"
+        explanation: "omega_d = omega_n * sqrt(1-zeta^2) < omega_n 이므로 감쇠 고유진동수는 더 작다."
+    lecture_ref: "Lecture 4"
+
+  - id: "rule_070"
+    topic: "harmonic_response"
+    statement: "A nonlinear system can produce harmonic generation, creating output at frequencies other than the input frequency."
+    verdict: true
+    reason: >
+      Nonlinear systems produce superharmonics, subharmonics, and combination frequencies.
+      Only linear systems preserve the input frequency exactly.
+    keywords: [nonlinear, generation, superharmonics, combination]
+    trap_patterns:
+      - pattern: "nonlinear.*only.*input\\s+frequency|nonlinear.*must.*same\\s+frequency|nonlinear.*must.*only"
+        explanation: "비선형 시스템은 고조파를 생성한다. 입력 주파수만 갖는 것은 선형계 특성이다."
+      - pattern: "linear\\s+and\\s+nonlinear.*same\\s+frequency|same\\s+frequency.*linear\\s+and\\s+nonlinear"
+        explanation: "같은 주파수 출력은 선형계에만 해당. 비선형계는 고조파를 생성한다."
+    lecture_ref: "Lecture 4"
+
+  - id: "rule_071"
+    topic: "dynamic_stiffness"
+    statement: "The compliance FRF G(s) = 1/Z(s) is the reciprocal of the dynamic stiffness Z(s) for an SDOF system."
+    verdict: true
+    reason: >
+      By definition, dynamic stiffness Z(s) = ms^2 + cs + k, and compliance
+      G(s) = 1/Z(s) = 1/(ms^2 + cs + k). They are reciprocals.
+    keywords: [compliance, dynamic stiffness, reciprocal, FRF, SDOF]
+    lecture_ref: "Lecture 5"
+
+  - id: "rule_072"
+    topic: "dynamic_stiffness"
+    statement: "At zero frequency (static case), the compliance of a second-order SDOF system equals 1/k."
+    verdict: true
+    reason: >
+      G(j*0) = 1/(m*0 + c*0 + k) = 1/k. This is the static deflection under unit force.
+    keywords: [zero frequency, compliance, 1/k, static, SDOF, second-order]
+    lecture_ref: "Lecture 5"
+
+  - id: "rule_073"
+    topic: "dynamic_stiffness"
+    statement: "At very high frequency, the compliance magnitude tends to zero because inertia dominates."
+    verdict: true
+    reason: >
+      As omega -> infinity, |G(j*omega)| ~ 1/(m*omega^2) -> 0. The mass term dominates.
+    keywords: [high frequency, compliance, zero, inertia, magnitude, tends]
+    lecture_ref: "Lecture 5"
+
+  - id: "rule_074"
+    topic: "dynamic_stiffness"
+    statement: "Increasing the damping ratio lowers the resonance peak amplitude of the compliance FRF."
+    verdict: true
+    reason: >
+      Higher damping reduces the quality factor Q = 1/(2*zeta), which directly lowers
+      the peak amplification at resonance.
+    keywords: [damping ratio, resonance peak, compliance, FRF, lowers, increasing]
+    lecture_ref: "Lecture 5"
+
+  - id: "rule_075"
+    topic: "dynamic_stiffness"
+    statement: "At exact resonance of an undamped SDOF system, the steady-state harmonic amplitude is infinite."
+    verdict: true
+    reason: >
+      With zero damping at omega = omega_n, the denominator of the FRF vanishes,
+      leading to unbounded amplitude. The trap is claiming it remains finite.
+    keywords: [resonance, undamped, amplitude, infinite, finite, steady-state, harmonic]
+    trap_patterns:
+      - pattern: "remains\\s+finite|amplitude.*finite"
+        explanation: "무감쇠 공진에서 정상상태 진폭은 무한대이다 (유한하지 않다)."
+    lecture_ref: "Lecture 5"
+
+  - id: "rule_075b"
+    topic: "structural_damping"
+    statement: "Structural damping is usually represented by an equivalent viscous damping only for harmonic analysis."
+    verdict: true
+    reason: >
+      The complex stiffness representation k(1+j*eta) is meaningful only when the
+      response is assumed harmonic. The equivalent viscous damping model derived from
+      structural damping is valid only under harmonic excitation assumptions.
+    keywords: [structural damping, equivalent viscous, harmonic analysis, represented, only, usually]
+    lecture_ref: "Lecture 8"
+
+  - id: "rule_076"
+    topic: "structural_damping"
+    statement: "Structural damping is physically associated with hysteretic energy loss in materials."
+    verdict: true
+    reason: >
+      Structural (hysteretic) damping arises from internal friction and microslip within
+      materials under cyclic loading. The energy loss per cycle is proportional to
+      displacement amplitude squared but independent of frequency.
+    keywords: [structural damping, hysteretic, energy loss, elastic, cyclic, materials, hysteresis]
+    lecture_ref: "Lecture 6"
+
+  - id: "rule_077"
+    topic: "structural_damping"
+    statement: "The loss factor eta in structural damping is not identical to the viscous damping ratio zeta in general."
+    verdict: true
+    reason: >
+      The loss factor eta and viscous damping ratio zeta are different quantities.
+      Under harmonic equivalence, eta = 2*zeta can be used, but this relation holds
+      only at a specific frequency and is not a general identity.
+    keywords: [loss factor, damping ratio, identical, structural damping, eta, zeta]
+    trap_patterns:
+      - pattern: "identical.*all|identical.*every|identical.*always"
+        explanation: "loss factor와 damping ratio는 일반적으로 동일하지 않다."
+    lecture_ref: "Lecture 6"
+
+  - id: "rule_078"
+    topic: "virtual_work"
+    statement: "Virtual displacement is an imagined infinitesimal variation compatible with constraints, not an actual displacement."
+    verdict: true
+    reason: >
+      Virtual displacement is a hypothetical, infinitesimal displacement that satisfies
+      the geometric constraints. It is not an actual motion that occurs during the
+      system's real time evolution.
+    keywords: [imagined, infinitesimal, hypothetical, variation]
+    trap_patterns:
+      - pattern: "actual\\s+displacement|actual.*undergoes"
+        explanation: "가상 변위는 실제 변위가 아니라 구속조건과 양립하는 가상적 미소 변화이다."
+    lecture_ref: "Lecture 7"
+
+  - id: "rule_079"
+    topic: "dof_constraints"
+    statement: "Increasing geometric constraints reduces the number of degrees of freedom."
+    verdict: true
+    reason: >
+      DOF = (number of coordinates) - (number of independent constraints).
+      More constraints mean fewer independent coordinates, hence fewer DOF.
+    keywords: [constraints, degrees of freedom, DOF, increases, reduces, geometric, particles, fixed]
+    trap_patterns:
+      - pattern: "constraint.*increase.*DOF\\s+increase|DOF\\s+increase.*constraint"
+        explanation: "제약이 늘면 자유도는 감소한다 (증가가 아님)."
+      - pattern: "number.*DOF.*increase.*constraint|constraint.*number.*DOF.*increase"
+        explanation: "제약이 늘면 자유도는 감소한다."
+    lecture_ref: "Lecture 7"
+
+  - id: "rule_079b"
+    topic: "dof_constraints"
+    statement: "If the number of geometric constraints increases while the number of particles is fixed, the number of DOF increases."
+    verdict: false
+    reason: >
+      More constraints reduce the number of independent coordinates.
+      DOF = 3*N_particles - N_constraints (for 3D). Increasing constraints
+      decreases DOF, not increases it.
+    keywords: [constraints, degrees of freedom, DOF, increases, particles, fixed, geometric, number]
+    lecture_ref: "Lecture 7"
+
+  - id: "rule_083b"
+    topic: "stability"
+    statement: "For an asymptotically stable linear system, at least one eigenvalue may have positive real part."
+    verdict: false
+    reason: >
+      If even one eigenvalue has positive real part, the system is unstable.
+      Asymptotic stability requires ALL eigenvalues to have strictly negative real parts.
+    keywords: [asymptotically stable, eigenvalue, positive real part, nonpositive, every, at least one, may]
+    lecture_ref: "Lecture 10"
+
+  - id: "rule_080"
+    topic: "stability"
+    statement: "A positive definite Lyapunov function with negative semidefinite time derivative guarantees stability, but not necessarily asymptotic stability."
+    verdict: true
+    reason: >
+      V > 0 and V_dot <= 0 implies stable (Lyapunov stable), but V_dot = 0 on some
+      trajectories means the state may not converge to equilibrium. Asymptotic stability
+      requires V_dot < 0 strictly (negative definite) or application of LaSalle's invariance
+      principle. The trap word is 'necessarily'.
+    keywords: [Lyapunov, positive definite, negative semidefinite, asymptotic, necessarily, stable]
+    trap_patterns:
+      - pattern: "negative\\s+semidefinite.*necessarily.*asymptotic|semidefinite.*asymptotically\\s+stable"
+        explanation: "negative semidefinite V_dot는 stable까지만 보장. asymptotic stability에는 추가 조건 필요."
+    lecture_ref: "Lecture 10"
+
+  - id: "rule_081"
+    topic: "stability"
+    statement: "Stable and asymptotically stable are distinct stability concepts."
+    verdict: true
+    reason: >
+      Stable (Lyapunov stable) means trajectories stay near the equilibrium.
+      Asymptotically stable means trajectories converge to the equilibrium as t -> inf.
+      Asymptotic stability is strictly stronger than stability.
+    keywords: [stable, asymptotically stable, same, different, distinct, exactly]
+    trap_patterns:
+      - pattern: "same\\s+thing|exactly.*same|identical|mean.*same"
+        explanation: "stable과 asymptotically stable은 다른 개념이다."
+    lecture_ref: "Lecture 10"
+
+  - id: "rule_082"
+    topic: "stability"
+    statement: "A stable linear system may have purely imaginary eigenvalues; negative real parts are required only for asymptotic stability."
+    verdict: true
+    reason: >
+      Stability (bounded solutions) allows eigenvalues on the imaginary axis (simple,
+      non-repeated). Asymptotic stability requires all Re(lambda) < 0 strictly.
+      The trap is saying 'stable requires all negative real parts' — that is
+      asymptotic stability, not mere stability.
+    keywords: [stable, eigenvalue, negative real part, asymptotic stability, purely imaginary, must]
+    trap_patterns:
+      - pattern: "stable.*must.*negative\\s+real|stable.*all.*negative"
+        explanation: "stable은 purely imaginary eigenvalue를 허용한다. 모두 음의 실수부를 요구하는 것은 asymptotic stability이다."
+    lecture_ref: "Lecture 10"
+
+  - id: "rule_083"
+    topic: "stability"
+    statement: "Asymptotic stability requires all eigenvalues to have strictly negative real parts; no positive real part is allowed."
+    verdict: true
+    reason: >
+      For asymptotic stability, every eigenvalue must satisfy Re(lambda) < 0.
+      If even one eigenvalue has Re(lambda) > 0, the system is unstable.
+    keywords: [asymptotic stability, eigenvalue, positive real part, negative real part, nonpositive, every]
+    trap_patterns:
+      - pattern: "positive\\s+real\\s+part.*may|may.*positive\\s+real"
+        explanation: "양의 실수부 고유값이 하나라도 있으면 unstable이다."
+      - pattern: "at\\s+least\\s+one.*positive|one.*may.*positive"
+        explanation: "양의 실수부 고유값이 하나라도 있으면 unstable이다. asymptotic stability가 아니다."
+    lecture_ref: "Lecture 10"
+
+  - id: "rule_084"
+    topic: "modal_analysis"
+    statement: "Eigenvectors (mode shapes) are scale-invariant: any nonzero scalar multiple is also an eigenvector."
+    verdict: true
+    reason: >
+      If Au = lambda*u, then A(c*u) = lambda*(c*u) for any nonzero c.
+      The eigenvalue is unchanged; only the scaling changes.
+    keywords: [mode shape, eigenvector, scale, multiply, constant, nonzero, eigenvalue, invariant]
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_085"
+    topic: "gyroscopic"
+    statement: "A gyroscopic conservative system can be stable (whirl motion) despite having an asymmetric system matrix."
+    verdict: true
+    reason: >
+      Gyroscopic systems can have purely imaginary eigenvalues giving stable forward/backward
+      whirl modes. Asymmetry alone does not imply instability.
+    keywords: [gyroscopic, conservative, unstable, asymmetric, stable, always, must]
+    trap_patterns:
+      - pattern: "must.*always.*unstable|always.*unstable.*asymmetric"
+        explanation: "비대칭 행렬 자체가 불안정을 의미하지 않는다. 자이로스코픽 시스템은 안정적 whirl motion이 가능하다."
+    lecture_ref: "Lecture 12"
+
+  - id: "rule_086"
+    topic: "gyroscopic"
+    statement: "For nonsymmetric eigenvalue problems, right eigenvectors alone do not satisfy ordinary orthogonality, and left eigenvectors are needed for bi-orthogonality."
+    verdict: true
+    reason: >
+      When the system matrix is nonsymmetric (e.g., gyroscopic), standard orthogonality
+      of right eigenvectors alone does not hold. However, left and right eigenvectors
+      satisfy bi-orthogonality, which enables modal decomposition and diagonalization.
+    keywords: [nonsymmetric, right eigenvector, left eigenvector, bi-orthogonality, orthogonality, diagonalize, needed]
+    lecture_ref: "Lecture 13"
+
+  # ============================================================
+  # NEW RULES (rule_087 ~ rule_125) — 39 additional for 100-Q coverage
+  # ============================================================
+
+  # --- Group A: FALSE rules ---
+
+  - id: "rule_087"
+    topic: "linear_systems"
+    statement: "Every time-invariant system is linear."
+    verdict: false
+    reason: >
+      Time invariance and linearity are independent properties. A system can be
+      time-invariant (its parameters do not change with time) yet nonlinear
+      (e.g., x' = x^2 is time-invariant but nonlinear). Linearity requires
+      superposition; time invariance requires shift invariance. Neither implies
+      the other.
+    keywords: [every, linearity, nonlinear]
+    trap_patterns:
+      - pattern: "every.*time.invariant.*linear"
+        explanation: "시불변성과 선형성은 독립 개념이다. 시불변이라고 선형인 것은 아니다."
+    lecture_ref: "Lecture 2"
+
+  - id: "rule_088"
+    topic: "frf_convolution"
+    statement: "The convolution integral for an LTI system is used only when the input is harmonic."
+    verdict: false
+    reason: >
+      The convolution integral y(t) = integral h(t-tau)f(tau)dtau works for ANY
+      input f(t), not just harmonic inputs. It is the most general input-output
+      relation for LTI systems. For harmonic inputs one can use the FRF shortcut,
+      but convolution applies to arbitrary, transient, impulsive, or random inputs.
+    keywords: [convolution, integral, LTI, only, harmonic, input, used, arbitrary]
+    trap_patterns:
+      - pattern: "convolution.*only.*harmonic"
+        explanation: "합성적분은 모든 입력에 적용된다. 조화입력에만 한정되지 않는다."
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_089"
+    topic: "frf_convolution"
+    statement: "The unit step function is the derivative of the Dirac delta function."
+    verdict: false
+    reason: >
+      The relationship is reversed: the Dirac delta function is the derivative of
+      the unit step function, delta(t) = d/dt u(t). Equivalently, the step
+      function is the integral of the delta function. Claiming the step is the
+      derivative of delta inverts the correct relationship.
+    keywords: [unit step, derivative, Dirac delta, step function, delta function]
+    trap_patterns:
+      - pattern: "step.*derivative.*delta|step.*derivative.*Dirac"
+        explanation: "delta가 step의 도함수이다. step이 delta의 도함수가 아니다."
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_090"
+    topic: "transfer_function"
+    statement: "The poles of G(s) are the roots of the numerator polynomial."
+    verdict: false
+    reason: >
+      Poles of a transfer function G(s) = N(s)/D(s) are the roots of the
+      denominator polynomial D(s), not the numerator. The roots of the numerator
+      N(s) are called zeros. This is a fundamental definition in control and
+      vibration theory.
+    keywords: [poles, roots, numerator, polynomial, denominator, zeros, transfer function]
+    trap_patterns:
+      - pattern: "poles.*numerator|poles.*roots.*numerator"
+        explanation: "극점(poles)은 분모의 근이다. 분자의 근은 영점(zeros)이다."
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_091"
+    topic: "impulse_response"
+    statement: "Causality requires h(t) to be nonzero before the excitation arrives."
+    verdict: false
+    reason: >
+      Causality requires that the system does not respond before the input is
+      applied. For a causal LTI system, the impulse response h(t) = 0 for all
+      t < 0. Claiming h(t) is nonzero for negative time contradicts causality.
+    keywords: [causal, nonzero, negative]
+    trap_patterns:
+      - pattern: "causal.*nonzero.*negative|causal.*impulse.*nonzero.*negative"
+        explanation: "인과 시스템에서 h(t)=0 for t<0이다. 음의 시간에서 nonzero가 아니다."
+      - pattern: "nonzero.*negative\\s+time|must.*nonzero.*negative"
+        explanation: "인과 시스템에서 음의 시간에서 h(t)=0이다."
+    lecture_ref: "Lecture 2"
+
+  - id: "rule_092"
+    topic: "state_equations"
+    statement: "A second-order N-DOF vibration system becomes a first-order state system of dimension N after augmentation."
+    verdict: false
+    reason: >
+      A second-order N-DOF system has N displacement and N velocity variables,
+      giving 2N state variables total. The augmented first-order state system
+      has dimension 2N, not N. This is a classic factor-of-two error.
+    keywords: [second-order, N-DOF, dimension, augmentation, dimension N, becomes, first-order state]
+    trap_patterns:
+      - pattern: "dimension\\s+N\\b|dimension.*\\bN\\b.*after"
+        explanation: "2차 N-DOF 시스템은 2N차원 상태방정식이 된다. N이 아니다."
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_093"
+    topic: "state_equations"
+    statement: "The transition matrix depends on the initial state x(0)."
+    verdict: false
+    reason: >
+      The transition matrix (state transition matrix, matrix exponential) e^{At}
+      depends only on the system matrix A and time t. It is completely independent
+      of the initial state x(0). The solution x(t) = e^{At} x(0) uses x(0) as a
+      multiplier, but the transition matrix itself is a property of A alone.
+    keywords: [transition matrix, depends, initial state, x(0), independent, matrix exponential]
+    trap_patterns:
+      - pattern: "transition.*depends.*initial|transition.*depends.*x\\(0\\)"
+        explanation: "천이행렬은 A와 t에만 의존한다. 초기 상태 x(0)에 의존하지 않는다."
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_094"
+    topic: "state_equations"
+    statement: "The dimension of the augmented vector always equals the count of geometric DOFs."
+    verdict: false
+    reason: >
+      In a state-space model for a second-order mechanical system, the state
+      vector typically includes both displacements and velocities. Thus the
+      number of states is generally twice the number of physical coordinates
+      (or more in some formulations). They are equal only for first-order systems.
+    keywords: [equals, number, always]
+    trap_patterns:
+      - pattern: "states.*always.*equals.*physical|number.*states.*equals.*coordinates"
+        explanation: "상태 수는 물리 좌표 수의 2배(변위+속도)인 경우가 일반적이다."
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_095"
+    topic: "stability"
+    statement: "Purely imaginary eigenvalues in a linear system always imply asymptotic stability."
+    verdict: false
+    reason: >
+      Purely imaginary eigenvalues indicate marginal (Lyapunov) stability for
+      simple eigenvalues — bounded oscillatory motion that neither grows nor
+      decays. Asymptotic stability requires all eigenvalues to have strictly
+      negative real parts. Purely imaginary eigenvalues mean the system is at
+      best marginally stable, never asymptotically stable.
+    keywords: [purely, imaginary, imply, asymptotic]
+    trap_patterns:
+      - pattern: "imaginary.*always.*asymptotic|imaginary.*imply.*asymptotic"
+        explanation: "순허수 고유값은 marginal stability이다. asymptotic stability가 아니다."
+    lecture_ref: "Lecture 10"
+
+  - id: "rule_096"
+    topic: "eigenvalue_problems"
+    statement: "A basis swap via P-inverse A P alters the latent roots of the operator."
+    verdict: false
+    reason: >
+      A similarity transformation B = P^{-1}AP preserves all eigenvalues.
+      Similar matrices share the same characteristic polynomial and hence
+      identical eigenvalues. Only eigenvectors change under similarity
+      transformation, eigenvalues remain invariant.
+    keywords: [similarity, changes, eigenvalues]
+    trap_patterns:
+      - pattern: "similarity.*changes.*eigenvalue|similarity.*transformation.*changes"
+        explanation: "닮음 변환은 고유값을 보존한다. 변경하지 않는다."
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_097"
+    topic: "eigenvalue_problems"
+    statement: "If two matrices are similar, they must have identical eigenvectors in the original coordinates."
+    verdict: false
+    reason: >
+      Similar matrices share the same eigenvalues but generally have different
+      eigenvectors. If B = P^{-1}AP, the eigenvectors of B are P^{-1} times
+      those of A. They are identical only if P is the identity. Eigenvector
+      identity across coordinates is the exception, not the rule.
+    keywords: [similar, matrices, identical, eigenvectors, original, coordinates, eigenvalues]
+    trap_patterns:
+      - pattern: "similar.*identical.*eigenvector|similar.*same.*eigenvector"
+        explanation: "닮은 행렬은 같은 고유값을 갖지만 고유벡터는 일반적으로 다르다."
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_098"
+    topic: "virtual_work_lagrange"
+    statement: "Generalized coordinates must always coincide with Cartesian coordinates."
+    verdict: false
+    reason: >
+      Generalized coordinates can be any set of independent parameters that
+      describe the system configuration: angles, arc lengths, abstract
+      coordinates, etc. They need not be Cartesian. The freedom to choose
+      convenient generalized coordinates is a major advantage of Lagrangian
+      mechanics.
+    keywords: [coincide, Cartesian]
+    trap_patterns:
+      - pattern: "generalized.*must.*Cartesian|generalized.*always.*Cartesian"
+        explanation: "일반화 좌표는 카르테시안 좌표일 필요가 없다. 각도 등 추상 좌표도 가능하다."
+    lecture_ref: "Lecture 7"
+
+  - id: "rule_099"
+    topic: "virtual_work_lagrange"
+    statement: "The generalized inertial force in D'Alembert's principle is treated with the same sign as the applied generalized force."
+    verdict: false
+    reason: >
+      In D'Alembert's principle, the inertial force (-m*a) carries an opposite
+      sign to the applied force. When forming generalized forces, the inertial
+      contribution appears with a negative sign relative to the applied generalized
+      force. This sign difference is what converts Newton's second law into a
+      quasi-static equilibrium form.
+    keywords: [generalized, inertial, force, D'Alembert, sign, applied, opposite]
+    trap_patterns:
+      - pattern: "inertial.*same\\s+sign.*applied|same\\s+sign.*inertial"
+        explanation: "달랑베르 원리에서 관성력은 적용력과 반대 부호이다."
+    lecture_ref: "Lecture 7"
+
+  - id: "rule_100"
+    topic: "harmonic_response"
+    statement: "For an underdamped SDOF system, the damped natural frequency omega_d is greater than omega_n."
+    verdict: false
+    reason: >
+      omega_d = omega_n * sqrt(1 - zeta^2). For an underdamped system 0<zeta<1,
+      so sqrt(1-zeta^2) < 1, meaning omega_d < omega_n always. The damped
+      frequency is always less than the undamped natural frequency.
+    keywords: [underdamped, SDOF, damped natural frequency, omega_d, greater, omega_n, less]
+    trap_patterns:
+      - pattern: "omega_d.*greater.*omega_n|damped.*greater.*undamped"
+        explanation: "omega_d < omega_n이다. omega_d가 omega_n보다 크지 않다."
+    lecture_ref: "Lecture 4"
+
+  - id: "rule_101"
+    topic: "damping"
+    statement: "If zeta>1, the free response is oscillatory but slowly decaying."
+    verdict: false
+    reason: >
+      When zeta > 1 the system is overdamped. The characteristic roots are
+      both real and negative — there is no oscillation at all. The free response
+      is a sum of two decaying exponentials without any sinusoidal component.
+      Oscillatory behavior occurs only when zeta < 1 (underdamped).
+    keywords: [zeta, overdamped, oscillatory, slowly decaying, free response, nonoscillatory]
+    trap_patterns:
+      - pattern: "zeta.*>.*1.*oscillatory|overdamped.*oscillatory"
+        explanation: "zeta>1(과감쇠)이면 비진동 응답이다. 진동하지 않는다."
+    lecture_ref: "Lecture 4"
+
+  - id: "rule_102"
+    topic: "frf_convolution"
+    statement: "In a first-order compliance FRF, the phase goes from 0 to -pi as frequency increases."
+    verdict: false
+    reason: >
+      For a first-order system G(jw) = 1/(k + jwc), the phase angle goes from
+      0 at w=0 to -pi/2 as w -> infinity. The phase asymptote is -90 degrees
+      (-pi/2), not -180 degrees (-pi). The -pi phase limit applies to
+      second-order systems, not first-order.
+    keywords: [phase, goes]
+    trap_patterns:
+      - pattern: "first.order.*phase.*-pi\\b|first.order.*phase.*0.*to.*-pi\\b"
+        explanation: "1차 시스템 FRF 위상은 0에서 -pi/2로 간다. -pi가 아니다."
+    lecture_ref: "Lecture 5"
+
+  - id: "rule_103"
+    topic: "damping"
+    statement: "Viscous-type loss is frequency-independent at a constant displacement level."
+    verdict: false
+    reason: >
+      For viscous damping, the energy dissipated per cycle is E = pi*c*omega*X^2,
+      which is proportional to the excitation frequency omega. It is NOT
+      independent of frequency. Frequency-independent dissipation per cycle
+      (at fixed amplitude) is a property of structural (hysteretic) damping,
+      not viscous damping.
+    keywords: [viscous, independent, frequency, fixed, amplitude]
+    trap_patterns:
+      - pattern: "viscous.*independent.*frequency|viscous.*dissipation.*independent"
+        explanation: "점성감쇠의 에너지 소산은 주파수에 비례한다. 독립이 아니다."
+    lecture_ref: "Lecture 6"
+
+  - id: "rule_104"
+    topic: "impulse_response"
+    statement: "A stable single-time-constant plant has a nondecaying oscillatory h(t)."
+    verdict: false
+    reason: >
+      The impulse response of a stable first-order system c*x' + k*x = delta(t)
+      is h(t) = (1/c)*exp(-(k/c)*t) for t>0, which is an exponentially decaying
+      function — not periodic and not nondecaying. A stable system by definition
+      has a decaying impulse response.
+    keywords: [nondecaying, periodic, motion]
+    trap_patterns:
+      - pattern: "stable.*first.order.*nondecaying|first.order.*nondecaying.*periodic"
+        explanation: "안정한 1차 시스템의 임펄스 응답은 지수 감쇠한다. 비감쇠 주기운동이 아니다."
+      - pattern: "nondecaying.*periodic|periodic.*nondecaying"
+        explanation: "안정한 시스템의 임펄스 응답은 감쇠한다. 비감쇠 주기운동이 아니다."
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_105"
+    topic: "stability"
+    statement: "Every equilibrium point is the origin of coordinates."
+    verdict: false
+    reason: >
+      Equilibrium points are states where the state derivative is zero
+      (f(x_eq) = 0). Many systems have nontrivial equilibrium points away
+      from the origin (e.g., pendulum at both theta=0 and theta=pi, or
+      systems with gravity offsets). The origin is an equilibrium only if
+      f(0)=0, which is common but not universal.
+    keywords: [every, equilibrium, origin]
+    trap_patterns:
+      - pattern: "every.*equilibrium.*origin"
+        explanation: "모든 평형점이 원점인 것은 아니다. 비자명 평형점이 존재할 수 있다."
+    lecture_ref: "Lecture 10"
+
+  - id: "rule_106"
+    topic: "stability"
+    statement: "A negative-stiffness SDOF equilibrium remains safe and bounded."
+    verdict: false
+    reason: >
+      Negative linearized stiffness means the restoring force acts away from
+      the equilibrium, creating a divergent (unstable) equilibrium. For an
+      SDOF system, negative effective stiffness leads to eigenvalues with
+      positive real parts (one positive real root), which indicates instability.
+    keywords: [negative, stable]
+    trap_patterns:
+      - pattern: "negative.*stiffness.*equilibrium.*stable|stiffness.*negative.*stable"
+        explanation: "음의 강성은 불안정 평형을 의미한다. 안정이 아니다."
+      - pattern: "linearized.*stiffness.*negative.*stable"
+        explanation: "선형화된 강성이 음이면 평형은 불안정이다."
+      - pattern: "negative.*stiffness.*equilibrium.*is.*stable"
+        explanation: "음의 강성이면 불안정 평형이다."
+    lecture_ref: "Lecture 10"
+
+  - id: "rule_107"
+    topic: "stability"
+    statement: "A Lyapunov function must be unique if it exists."
+    verdict: false
+    reason: >
+      There is no uniqueness requirement for Lyapunov functions. Multiple
+      valid Lyapunov functions can exist for the same equilibrium. For example,
+      V1 = x^2 and V2 = x^4 could both serve as Lyapunov functions for the
+      same system. The choice of Lyapunov function is a matter of convenience
+      and ingenuity, not uniqueness.
+    keywords: [Lyapunov, function, must, unique, exists, uniqueness, multiple]
+    trap_patterns:
+      - pattern: "Lyapunov.*must.*unique|Lyapunov.*unique.*exists"
+        explanation: "Lyapunov 함수는 유일하지 않다. 여러 유효한 함수가 존재할 수 있다."
+    lecture_ref: "Lecture 10"
+
+  - id: "rule_108"
+    topic: "modal_analysis"
+    statement: "In modal analysis, multiplying a mode shape by a nonzero scalar changes the natural frequency."
+    verdict: false
+    reason: >
+      Mode shapes (eigenvectors) are scale-invariant: if u is a mode shape with
+      eigenvalue lambda, then c*u is also a mode shape with the same eigenvalue
+      lambda for any nonzero scalar c. Natural frequencies are determined by
+      eigenvalues, which are independent of eigenvector scaling.
+    keywords: [multiplying, scalar, changes]
+    trap_patterns:
+      - pattern: "multiplying.*mode.*changes.*frequency|scalar.*changes.*natural"
+        explanation: "모드 형상에 스칼라를 곱해도 고유진동수는 변하지 않는다."
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_109"
+    topic: "gyroscopic"
+    statement: "A gyroscopic matrix G in Mq_ddot + Gq_dot + Kq = 0 is symmetric."
+    verdict: false
+    reason: >
+      The gyroscopic matrix G is skew-symmetric (G^T = -G), not symmetric.
+      Skew-symmetry ensures that gyroscopic forces do no work (q_dot^T G q_dot = 0
+      for all q_dot when G is skew-symmetric). If G were symmetric, it would
+      represent damping, not gyroscopic effects.
+    keywords: [Mq_ddot, Gq_dot, symmetric]
+    trap_patterns:
+      - pattern: "gyroscopic.*\\bis\\b.*symmetric"
+        explanation: "자이로스코픽 행렬은 반대칭(skew-symmetric)이다. 대칭이 아니다."
+    lecture_ref: "Lecture 12"
+
+  - id: "rule_110"
+    topic: "gyroscopic"
+    statement: "A conservative gyroscopic system must be unstable because its modes are complex."
+    verdict: false
+    reason: >
+      Complex mode shapes in a gyroscopic system do not imply instability.
+      A conservative gyroscopic system can have purely imaginary eigenvalues
+      (stable forward and backward whirl modes) with complex mode shapes.
+      Stability is determined by eigenvalue locations, not by whether mode
+      shapes are real or complex.
+    keywords: [unstable, because, complex]
+    trap_patterns:
+      - pattern: "gyroscopic.*must.*unstable.*complex|complex.*modes.*unstable"
+        explanation: "복소 모드가 불안정을 의미하지 않는다. 자이로 보존계는 안정적일 수 있다."
+      - pattern: "gyroscopic.*must.*unstable|conservative.*gyroscopic.*unstable"
+        explanation: "보존 자이로 시스템은 안정적일 수 있다."
+    lecture_ref: "Lecture 12"
+
+  # --- Group B: TRUE rules ---
+
+  - id: "rule_111"
+    topic: "frf_convolution"
+    statement: "In the frequency domain, convolution in time becomes multiplication."
+    verdict: true
+    reason: >
+      This is the convolution theorem: if y(t) = h(t) * f(t) (convolution),
+      then Y(jw) = H(jw) F(jw) (multiplication). Time-domain convolution
+      corresponds to frequency-domain multiplication and vice versa.
+    keywords: [becomes, multiplication]
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_112"
+    topic: "transfer_function"
+    statement: "A transfer function G(s)=X(s)/F(s) is defined most cleanly under zero initial conditions."
+    verdict: true
+    reason: >
+      The transfer function relates output to input in the Laplace domain
+      assuming zero initial conditions. Under nonzero initial conditions,
+      additional terms from the homogeneous solution appear, and the ratio
+      X(s)/F(s) no longer equals G(s) alone. Zero initial conditions give
+      the cleanest definition.
+    keywords: [transfer, function, defined, cleanly]
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_113"
+    topic: "state_equations"
+    statement: "For x_dot = Ax + Bf(t), the forced response under x(0)=0 is x(t)=integral of e^{A(t-tau)}Bf(tau)dtau."
+    verdict: true
+    reason: >
+      This is the convolution integral (variation of parameters) for the
+      forced response of a linear state equation. With zero initial conditions,
+      the total response is purely the particular solution given by the
+      integral of the matrix exponential times the input. This is the
+      state-space analog of Duhamel's integral.
+    keywords: [x_dot, forced response, "x(0)=0", integral, "e^A(t-tau)", "Bf(tau)", convolution, state equation, zero]
+    lecture_ref: "Lecture 3"
+
+  - id: "rule_114"
+    topic: "virtual_work"
+    statement: "In the principle of virtual work for ideal constraints, constraint forces do no virtual work."
+    verdict: true
+    reason: >
+      For ideal (workless, frictionless) constraints, the constraint forces
+      are always perpendicular to the virtual displacements consistent with
+      the constraints. Therefore, the virtual work of constraint forces is
+      zero. This is the defining property of ideal constraints and is the
+      foundation of the virtual work principle.
+    keywords: [ideal, constraint]
+    lecture_ref: "Lecture 7"
+
+  - id: "rule_115"
+    topic: "virtual_work"
+    statement: "Internal action-reaction forces can be eliminated in the virtual-work summation for a system of particles."
+    verdict: true
+    reason: >
+      By Newton's third law, internal forces come in equal-and-opposite pairs.
+      For rigid body constraints or systems where paired particles undergo
+      the same virtual displacement, the net virtual work of internal
+      action-reaction pairs cancels. This elimination simplifies the
+      virtual work equation to involve only external and applied forces.
+    keywords: [internal, action-reaction, eliminated, summation, particles]
+    lecture_ref: "Lecture 7"
+
+  - id: "rule_116"
+    topic: "virtual_work_lagrange"
+    statement: "Lagrange's equation is d/dt(dL/dq_dot)-dL/dq = Q_nc for generalized nonconservative force Q_nc."
+    verdict: true
+    reason: >
+      Lagrange's equation in its general form accounts for both conservative
+      forces (through the Lagrangian L = T - V) and nonconservative forces
+      (through the generalized force Q_nc). The equation d/dt(partial L/partial
+      q_dot) - partial L/partial q = Q_nc is the standard form taught in
+      analytical dynamics courses.
+    keywords: [Lagrange, equation, dL/dq_dot, dL/dq, Q_nc, nonconservative, generalized force]
+    lecture_ref: "Lecture 7"
+
+  - id: "rule_117"
+    topic: "harmonic_response"
+    statement: "For the free response of an undamped SDOF system, the motion is purely harmonic with frequency omega_n = sqrt(k/m)."
+    verdict: true
+    reason: >
+      An undamped SDOF system m*x'' + k*x = 0 has the general solution
+      x(t) = A*cos(omega_n*t) + B*sin(omega_n*t) where omega_n = sqrt(k/m).
+      This is purely harmonic oscillation at the natural frequency with no
+      decay or growth.
+    keywords: [free, response, undamped, SDOF, purely, harmonic, frequency, omega_n, sqrt, motion]
+    lecture_ref: "Lecture 4"
+
+  - id: "rule_118"
+    topic: "damping"
+    statement: "Critical damping corresponds to zeta = 1."
+    verdict: true
+    reason: >
+      Critical damping is defined as the boundary between underdamped
+      (zeta < 1, oscillatory) and overdamped (zeta > 1, non-oscillatory)
+      behavior. At zeta = 1, the system returns to equilibrium in the
+      shortest time without oscillation. The critical damping coefficient
+      is c_cr = 2*sqrt(k*m) = 2*m*omega_n.
+    keywords: [critical, damping, corresponds, zeta, boundary, underdamped, overdamped]
+    lecture_ref: "Lecture 4"
+
+  - id: "rule_119"
+    topic: "structural_damping"
+    statement: "Structural damping is modeled most naturally as an equivalent complex stiffness in harmonic analysis."
+    verdict: true
+    reason: >
+      Structural (hysteretic) damping is represented by the complex stiffness
+      k*(1 + j*eta), where eta is the loss factor. This representation arises
+      naturally because hysteretic damping force is proportional to displacement
+      but in phase with velocity. The complex stiffness model is meaningful
+      only under harmonic (sinusoidal) excitation assumptions.
+    keywords: [structural, modeled, naturally, complex, stiffness]
+    lecture_ref: "Lecture 8"
+
+  - id: "rule_120"
+    topic: "stability"
+    statement: "If both the Lyapunov function and its time derivative are sign-variable, no definite stability conclusion follows from that test alone."
+    verdict: true
+    reason: >
+      Lyapunov's theorems require specific sign-definiteness conditions: V
+      positive definite and V_dot negative (semi)definite for stability, or
+      V_dot negative definite for asymptotic stability. If both V and V_dot
+      are sign-variable (indefinite), neither stability nor instability can
+      be concluded from this particular choice of Lyapunov candidate. A
+      different Lyapunov function might still yield a conclusion.
+    keywords: [sign-variable, conclusion]
+    lecture_ref: "Lecture 10"
+
+  - id: "rule_121"
+    topic: "modal_analysis"
+    statement: "For a conservative natural system, mode shapes can be mass-normalized so that U^T M U = I."
+    verdict: true
+    reason: >
+      The mode shapes of a conservative system with positive definite mass
+      matrix M can be scaled (mass-normalized) so that the modal mass matrix
+      becomes the identity: U^T M U = I. After mass normalization, U^T K U
+      gives the diagonal matrix of eigenvalues (natural frequency squared).
+      This normalization simplifies modal equations.
+    keywords: [mass-normalized, identity]
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_122"
+    topic: "modal_analysis"
+    statement: "Rayleigh-type proportional C = alpha M + beta K permits diagonalization by the original undamped eigenvectors."
+    verdict: true
+    reason: >
+      Proportional (Rayleigh) damping means C = alpha*M + beta*K. Since C is
+      a linear combination of M and K, the undamped mode shapes simultaneously
+      diagonalize M, C, and K. Therefore the same modal matrix that decouples
+      the undamped system also decouples the proportionally damped system,
+      yielding N independent damped SDOF modal equations.
+    keywords: [proportional, Rayleigh]
+    trap_patterns:
+      - pattern: "non.proportional|nonproportional"
+        explanation: "비례 감쇠가 아닌 경우 undamped mode shapes로 디커플링 불가."
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_123"
+    topic: "modal_analysis"
+    statement: "The modal matrix diagonalizes both the mass and stiffness matrices after proper normalization."
+    verdict: true
+    reason: >
+      For the generalized eigenvalue problem K*u = lambda*M*u with symmetric
+      positive definite M and symmetric K, the modal matrix U formed by
+      eigenvectors satisfies U^T M U = I (diagonal) and U^T K U = Lambda
+      (diagonal eigenvalue matrix) when mode shapes are mass-normalized.
+      This simultaneous diagonalization is the basis of modal analysis.
+    keywords: [diagonalizes]
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_124"
+    topic: "modal_analysis"
+    statement: "In a lightly damped modal equation, each modal coordinate behaves like an independent damped SDOF oscillator."
+    verdict: true
+    reason: >
+      When damping is proportional (or light enough to approximate as such),
+      the modal transformation decouples the system into N independent modal
+      equations, each of the form q_r'' + 2*zeta_r*omega_r*q_r' + omega_r^2*q_r
+      = f_r(t). Each modal coordinate q_r behaves as an independent damped
+      SDOF oscillator with its own natural frequency and damping ratio.
+    keywords: [lightly, oscillator, behaves]
+    lecture_ref: "Lecture 11"
+
+  - id: "rule_125"
+    topic: "gyroscopic"
+    statement: "For a nonsymmetric matrix, left eigenvectors are obtained from the adjoint problem A^T y = lambda y."
+    verdict: true
+    reason: >
+      For a nonsymmetric matrix A, right eigenvectors satisfy Ax = lambda*x,
+      while left eigenvectors satisfy A^T y = lambda y (or equivalently
+      y^T A = lambda y^T). The left eigenvectors come from the transpose
+      (adjoint) eigenvalue problem. Together, left and right eigenvectors
+      form the biorthogonal system needed for modal decomposition.
+    keywords: [left, eigenvectors, adjoint, obtained]
+    lecture_ref: "Lecture 13"
+
+  - id: "rule_126"
+    topic: "virtual_work"
+    statement: "In the principle of virtual work for static equilibrium, internal forces and ideal constraint forces are eliminated from the formulation."
+    verdict: true
+    reason: >
+      By Newton's third law, internal action-reaction forces cancel in the
+      virtual work summation for rigid connections. Ideal constraint forces
+      are perpendicular to virtual displacements, contributing zero virtual
+      work. Both types of forces drop out of the virtual work equation,
+      leaving only applied external forces.
+    keywords: [static, equilibrium, internal, eliminated]
+    lecture_ref: "Lecture 7"

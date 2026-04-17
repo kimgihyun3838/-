@@ -1,0 +1,48 @@
+═══════════════════════════════════════════════════════
+════════════ Problem: ConceptDB -- T/F 분석 ═════════════
+═══════════════════════════════════════════════════════
+
+▶ Given:
+  statement = Virtual work is work done by the external force with arbitrary displacement from the equilibrium state compatible with geometric constraints.
+
+▶ Solution:
+  Step 1: Query tokens
+    [′arbitrary′, ′compatible′, ′constraints′, ′displacement′, ′done′, ′equilibrium′, ′external′, ′force′, ′geometric′, ′state′, ′virtual′, ′work′]
+
+  Step 2: 입력 문장 구조 분석
+    범위 확장: [′arbitrary′]
+
+  Step 3: Match #1: rule_015 (score=12.0)
+    {′statement′: ′In the Principle of Virtual Work, the virtual work done by ideal constraint forces is zero.′, ′topic′: ′virtual_work_lagrange′, ′keyword_overlap′: []}
+
+  Step 4: Match #2: rule_019 (score=10.0)
+    {′statement′: ′At an equilibrium point q_e, the generalized force Q_i = -∂V/∂q_i = 0 for all i.′, ′topic′: ′virtual_work_lagrange′, ′keyword_overlap′: [′equilibrium′]}
+
+  Step 5: Match #3: rule_020 (score=8.0)
+    {′statement′: ′The linearized equations of motion about an equilibrium point always have symmetric mass and stiffness matrices.′, ′topic′: ′virtual_work_lagrange′, ′keyword_overlap′: [′equilibrium′]}
+
+▶ Final Answer:
+  rule_id = rule_015
+  topic = virtual_work_lagrange
+  matched_statement = In the Principle of Virtual Work, the virtual work done by ideal constraint forces is zero.
+  rule_verdict = TRUE
+  adjusted_verdict = TRUE
+  confidence = HIGH
+  verdict_note = 규칙(rule_015)과 구조 일치
+  reason = Ideal constraints (e.g., frictionless surfaces, rigid links, pin joints) enforce geometric conditions on motion. Their constraint forces are always perpendicular to the permissible virtual displacements consistent with the constraints. Therefore, the virtual work δW = F_constraint · δr = 0, allowing constraint forces to drop out of the equations of motion.
+  lecture_ref = Lecture 5
+  match_score = 12
+  conflicts = []
+  common_trap = Students may think internal forces or friction forces are also excluded; only ideal (workless) constraint forces vanish.
+  related_rules = [′rule_016′, ′rule_017′]
+  also_consider = [{′rule_id′: ′rule_019′, ′statement′: ′At an equilibrium point q_e, the generalized force Q_i = -∂V/∂q_i = 0 for all i.′, ′verdict′: ′TRUE′, ′topic′: ′virtual_work_lagrange′}, {′rule_id′: ′rule_020′, ′statement′: ′The linearized equations of motion about an equilibrium point always have symmetric mass and stiffness matrices.′, ′verdict′: ′TRUE′, ′topic′: ′virtual_work_lagrange′}]
+  advisory = 매칭 규칙: In the Principle of Virtual Work, the virtual work done by ideal constraint forces is zero.
+규칙 verdict: TRUE
+추정 판정: TRUE
+흔한 함정: Students may think internal forces or friction forces are also excluded; only ideal (workless) constraint forces vanish.
+  verdict = TRUE
+
+▶ Verification:
+  Confidence: HIGH | Score: 12.0 | Conflicts: 0 (0 HIGH) | Rules: 62
+
+═══════════════════════════════════════════════════════

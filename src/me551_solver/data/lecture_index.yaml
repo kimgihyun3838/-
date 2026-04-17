@@ -1,0 +1,396 @@
+# ME551 Linear Vibration Engineering — Lecture Index
+# Maps each lecture to its topics, key concepts, and related T/F rules.
+# Based on Lectures 1–13 (ME551 course structure).
+
+lectures:
+  - number: 1
+    title: "Introduction to Vibrations in Linear Systems"
+    topics:
+      - "Course overview and objectives"
+      - "Classification of vibrations (free/forced, damped/undamped, deterministic/random)"
+      - "Degrees of freedom (DOF) concept"
+      - "Simple harmonic motion review"
+      - "Types of excitation (harmonic, transient, random)"
+    key_concepts:
+      - "Vibration: oscillation of a mechanical system about an equilibrium"
+      - "DOF = minimum number of independent coordinates to describe system configuration"
+      - "Linear vs nonlinear systems distinction"
+      - "SDOF vs MDOF classification"
+    related_rules: []
+    midterm_relevance: "background"
+    keywords: [introduction, DOF, classification, harmonic motion, linear, nonlinear]
+
+  - number: 2
+    title: "Linear Systems — Linearity, Superposition, LTI"
+    topics:
+      - "Definition of linearity: homogeneity + additivity"
+      - "Superposition principle"
+      - "Linear time-invariant (LTI) systems"
+      - "SDOF equation of motion: m*x'' + c*x' + k*x = f(t)"
+      - "Free vibration of undamped SDOF"
+      - "Damped free vibration: underdamped, critically damped, overdamped"
+      - "Natural frequency omega_n = sqrt(k/m)"
+    key_concepts:
+      - "Linearity requires BOTH homogeneity f(ax)=af(x) AND additivity f(x+y)=f(x)+f(y)"
+      - "Superposition: response to sum = sum of responses"
+      - "LTI means parameters are constant; linearity does not require constant coefficients"
+      - "omega_n depends only on m and k, NOT on initial conditions"
+      - "Critical damping ratio zeta=1 separates oscillatory from non-oscillatory response"
+    related_rules: [rule_001, rule_002, rule_003, rule_004, rule_005, rule_047, rule_058]
+    midterm_relevance: "high — T/F questions on linearity and superposition appear every year"
+    keywords: [linearity, superposition, homogeneity, additivity, LTI, natural frequency, free vibration]
+
+  - number: 3
+    title: "FRF, Convolution, and State Equations"
+    topics:
+      - "Arbitrary excitation response via convolution integral"
+      - "Impulse response function h(t)"
+      - "Frequency Response Function (FRF) H(omega)"
+      - "Convolution theorem: time-domain convolution = frequency-domain multiplication"
+      - "State variable formulation: x_dot = Ax + Bf"
+      - "State transition matrix Phi(t) = exp(At)"
+      - "Properties of transition matrix: Phi(0)=I, group property"
+      - "Dimension of state vector for p-th order n-DOF system = p*n"
+    key_concepts:
+      - "x(t) = integral h(t-tau)*f(tau) dtau (Duhamel's integral)"
+      - "X(omega) = H(omega) * F(omega) in frequency domain"
+      - "State space: exact reformulation, no approximation"
+      - "Transition matrix: Phi(0)=I, Phi(t1+t2)=Phi(t1)*Phi(t2)"
+      - "State dimension for 2nd order n-DOF: 2n state variables"
+    related_rules: [rule_006, rule_007, rule_008, rule_009, rule_010, rule_011, rule_012, rule_013, rule_014, rule_049, rule_052]
+    midterm_relevance: "very high — FRF decomposition and state dimension questions are frequent"
+    keywords: [convolution, FRF, impulse response, state equation, transition matrix, state dimension]
+
+  - number: 4
+    title: "Single DOF Forced Vibration and FRF Analysis"
+    topics:
+      - "Harmonic forcing response"
+      - "Frequency response magnitude and phase"
+      - "Resonance and resonance frequency"
+      - "FRF of damped SDOF system"
+      - "Base excitation"
+      - "Transmissibility"
+    key_concepts:
+      - "FRF: H(omega) = 1/(k - m*omega^2 + j*c*omega)"
+      - "Undamped FRF is purely real"
+      - "Peak frequency omega_peak = omega_n*sqrt(1-2*zeta^2) for damped system"
+      - "Three distinct frequencies: omega_n, omega_d, omega_peak"
+    related_rules: [rule_008, rule_057]
+    midterm_relevance: "high — FRF shape and resonance questions"
+    keywords: [harmonic forcing, FRF, resonance, peak frequency, transmissibility, base excitation]
+
+  - number: 5
+    title: "Virtual Work, D'Alembert, Hamilton, and Lagrange"
+    topics:
+      - "Principle of Virtual Work"
+      - "Ideal constraint forces and their virtual work"
+      - "D'Alembert's principle"
+      - "Hamilton's principle"
+      - "Lagrange's equations derivation"
+      - "Generalized coordinates"
+      - "Generalized forces"
+      - "Conservative and non-conservative systems"
+    key_concepts:
+      - "Ideal constraint forces do zero virtual work"
+      - "Lagrange's equations: d/dt(∂L/∂q_dot_i) - ∂L/∂q_i = Q_i^nc"
+      - "Number of generalized coordinates = DOF"
+      - "Constraint forces automatically eliminated in Lagrange formulation"
+      - "L = T - V for conservative systems"
+      - "Hamilton's principle: δS = δ∫L dt = 0"
+    related_rules: [rule_015, rule_016, rule_017, rule_018, rule_050, rule_059]
+    midterm_relevance: "very high — Lagrange derivation is a core midterm problem type"
+    keywords: [virtual work, D'Alembert, Hamilton, Lagrange, generalized coordinates, constraint forces]
+
+  - number: 6
+    title: "Lagrange Equations — Applications and Multi-DOF"
+    topics:
+      - "Applying Lagrange to specific mechanical systems"
+      - "Rotating systems (rotating hoop, pendulum on turntable)"
+      - "Coupled oscillators via Lagrange"
+      - "Assembling M, C, K matrices from Lagrangian"
+      - "Linear vs nonlinear EOM from Lagrange"
+    key_concepts:
+      - "Step sequence: define q, write T and V, apply Lagrange, extract M K C matrices"
+      - "Linearized M and K matrices are always symmetric"
+      - "Multiple DOF systems assembled from T and V"
+    related_rules: [rule_019, rule_020, rule_017, rule_018]
+    midterm_relevance: "very high — rotating systems are classic midterm templates"
+    keywords: [Lagrange applications, rotating systems, M K matrices, coupling, nonlinear EOM]
+
+  - number: 7
+    title: "SDOF Systems — Structural Damping and Convolution"
+    topics:
+      - "Structural (hysteretic) damping model"
+      - "Complex stiffness: k* = k(1 + j*eta)"
+      - "Loss factor eta and equivalent viscous damping"
+      - "Validity of structural damping (harmonic assumption only)"
+      - "Impulse response and convolution review"
+    key_concepts:
+      - "Structural damping: force magnitude proportional to displacement, not velocity"
+      - "Structural damping is ONLY valid for harmonic excitation"
+      - "Equivalent viscous damping zeta = eta/2 at resonance only"
+      - "In time domain: use viscous damping; structural damping is frequency-domain concept"
+    related_rules: [rule_021, rule_022, rule_023]
+    midterm_relevance: "high — structural damping validity is classic T/F trap"
+    keywords: [structural damping, hysteretic, complex stiffness, loss factor, harmonic validity]
+
+  - number: 8
+    title: "SDOF Vibration — Damped Response and FRF"
+    topics:
+      - "Damped natural frequency omega_d = omega_n*sqrt(1-zeta^2)"
+      - "Underdamped, critically damped, overdamped response"
+      - "Free vibration response formulas"
+      - "FRF magnitude and phase for damped SDOF"
+      - "Damping measurement from FRF (half-power bandwidth)"
+    key_concepts:
+      - "omega_d < omega_n always for any damping"
+      - "Critical damping zeta=1: fastest non-oscillatory return"
+      - "FRF peak at omega_peak = omega_n*sqrt(1-2*zeta^2) for displacement FRF"
+    related_rules: [rule_045, rule_046, rule_057]
+    midterm_relevance: "medium-high — formula recall and FRF shape questions"
+    keywords: [damped natural frequency, critical damping, underdamped, overdamped, FRF, half-power]
+
+  - number: 9
+    title: "Equilibrium, Perturbation, and Linearization"
+    topics:
+      - "Finding equilibrium points: ∂V/∂q = 0"
+      - "Perturbation variables: q = q_e + p"
+      - "Taylor expansion around equilibrium"
+      - "Linearized EOM: M*p'' + K*p = 0"
+      - "Stability classification at equilibrium"
+      - "Potential energy criteria for stability"
+    key_concepts:
+      - "Equilibrium: all generalized forces zero, dV/dq = 0"
+      - "Perturbation expands nonlinear EOM to first order"
+      - "Linearized stiffness K = ∂²V/∂q∂q evaluated at equilibrium"
+      - "M and K are symmetric after linearization (Lagrangian systems)"
+      - "Stability requires K positive semi-definite"
+    related_rules: [rule_019, rule_020, rule_033, rule_034, rule_035]
+    midterm_relevance: "very high — equilibrium + linearization + stability is the core Lagrange problem chain"
+    keywords: [equilibrium, perturbation, linearization, stability, potential energy, Taylor expansion]
+
+  - number: 10
+    title: "Stability Analysis"
+    topics:
+      - "Stability definitions: Lyapunov, asymptotic, marginal, unstable"
+      - "Eigenvalue-based stability criteria"
+      - "Effect of damping on stability"
+      - "Routh-Hurwitz criterion"
+      - "Lyapunov's direct method"
+      - "Stability of undamped conservative systems"
+    key_concepts:
+      - "Asymptotic stability: all eigenvalues have Re(lambda) < 0"
+      - "Marginal stability: purely imaginary eigenvalues (simple)"
+      - "Repeated purely imaginary eigenvalues: unstable"
+      - "Positive definite K: marginal stability (no damping)"
+      - "Lyapunov method: find V>0 with dV/dt ≤ 0"
+    related_rules: [rule_031, rule_032, rule_033, rule_034, rule_035, rule_054, rule_014]
+    midterm_relevance: "very high — stability classification appears in almost every midterm"
+    keywords: [stability, Lyapunov, asymptotic, marginal, eigenvalue, positive definite, Routh-Hurwitz]
+
+  - number: 11
+    title: "Symmetric Eigenvalue Problem and Modal Analysis"
+    topics:
+      - "Generalized eigenvalue problem: Ku = lambda*Mu"
+      - "Properties of symmetric positive definite EVP"
+      - "M-orthogonality and K-orthogonality of eigenvectors"
+      - "Mass normalization: u^T M u = 1"
+      - "Modal matrix U and modal superposition"
+      - "Rayleigh damping (proportional damping): C = alpha*M + beta*K"
+      - "Modal decoupling with proportional damping"
+      - "Modal damping ratio formula"
+      - "Rayleigh's quotient and bounds"
+    key_concepts:
+      - "Real symmetric EVP: all eigenvalues real, eigenvectors orthogonal"
+      - "M-orthogonality: u_i^T M u_j = 0 for i≠j"
+      - "Mass normalization: U^T M U = I, U^T K U = diag(omega_n^2)"
+      - "Rayleigh damping gives diagonal modal damping matrix"
+      - "zeta_r = (alpha + beta*omega_n,r^2)/(2*omega_n,r)"
+      - "Modal superposition is EXACT for proportional damping"
+      - "Rayleigh's quotient: R(v) ≥ omega_1^2, minimum at first mode"
+    related_rules: [rule_024, rule_025, rule_026, rule_027, rule_028, rule_029, rule_030, rule_042, rule_043, rule_048, rule_051, rule_053, rule_056, rule_060]
+    midterm_relevance: "very high — 2-DOF modal analysis is always on the midterm"
+    keywords: [generalized EVP, M-orthogonality, mass normalization, modal matrix, Rayleigh damping, modal analysis]
+
+  - number: 12
+    title: "Gyroscopic Systems and Nonproportional Damping"
+    topics:
+      - "Gyroscopic matrix G (skew-symmetric)"
+      - "Equations of motion with gyroscopic terms: Mq'' + Gq' + Kq = f"
+      - "Energy analysis of gyroscopic forces"
+      - "Gyroscopic stabilization"
+      - "State-space formulation for gyroscopic systems"
+      - "Complex eigenvalues and complex mode shapes"
+      - "Introduction to nonproportional damping"
+    key_concepts:
+      - "G is skew-symmetric: G^T = -G"
+      - "Gyroscopic forces do NO work: q_dot^T G q_dot = 0"
+      - "Gyroscopic system eigenvalues: complex conjugate pairs"
+      - "Gyroscopic stabilization possible for indefinite K above critical speed"
+      - "Kelvin-Tait-Chetaev: damping can DESTABILIZE a gyroscopically stabilized system"
+      - "Nonproportional damping: U^T C U is NOT diagonal"
+    related_rules: [rule_036, rule_037, rule_038, rule_041, rule_044, rule_055]
+    midterm_relevance: "high — gyroscopic T/F questions about energy and skew-symmetry are common"
+    keywords: [gyroscopic, skew-symmetric, energy, stabilization, complex modes, nonproportional damping]
+
+  - number: 13
+    title: "Nonconservative Systems and Bi-Orthogonality"
+    topics:
+      - "Nonconservative positional forces (circulatory forces)"
+      - "Asymmetric stiffness matrix N"
+      - "Flutter instability"
+      - "Left and right eigenvectors"
+      - "Bi-orthogonality of left and right eigenvectors"
+      - "Modal expansion for asymmetric systems"
+      - "State-space formulation for general nonproportional systems"
+    key_concepts:
+      - "Circulatory forces: asymmetric stiffness part N (N^T ≠ N)"
+      - "Nonconservative forces can cause flutter (oscillatory instability)"
+      - "Positive definite symmetric K is NOT sufficient stability guarantee with circulatory forces"
+      - "Left eigenvectors: phi^T A = lambda^T phi^T"
+      - "Right eigenvectors: A psi = lambda psi"
+      - "Bi-orthogonality: phi_j^T psi_i = delta_ij (for distinct eigenvalues)"
+      - "Standard modal orthogonality does NOT apply to asymmetric systems"
+    related_rules: [rule_038, rule_039, rule_040, rule_044]
+    midterm_relevance: "medium-high — bi-orthogonality and left/right eigenvectors appear in advanced T/F questions"
+    keywords: [nonconservative, circulatory, flutter, left eigenvector, right eigenvector, bi-orthogonality, asymmetric]
+
+# Chapter-based summary (for backward compatibility with old schema)
+chapters:
+  - number: 1
+    title: "Introduction to Vibrations"
+    topics:
+      - "진동의 분류"
+      - "자유도(DOF) 개념"
+      - "조화운동 복습"
+    lecture_ref: "Lecture 1"
+
+  - number: 2
+    title: "Linear Systems & Single-DOF Free Vibration"
+    topics:
+      - "선형성: homogeneity + additivity"
+      - "중첩의 원리 (superposition)"
+      - "LTI 시스템"
+      - "운동방정식 유도"
+      - "고유진동수 omega_n = sqrt(k/m)"
+      - "비감쇠 자유진동"
+      - "감쇠 자유진동 (under/over/critical)"
+    lecture_ref: "Lecture 2"
+
+  - number: 3
+    title: "FRF, Convolution, and State Equations"
+    topics:
+      - "임의 가진 응답: 시간영역 = convolution"
+      - "주파수영역: X = H * F (곱)"
+      - "전달함수 H(omega)"
+      - "상태변수 방정식 x_dot = Ax + Bf"
+      - "전이행렬 Phi(t) = exp(At)"
+      - "상태벡터 차원: p*n"
+    lecture_ref: "Lecture 3"
+
+  - number: 4
+    title: "Lagrange's Equations"
+    topics:
+      - "가상일의 원리"
+      - "D'Alembert 원리"
+      - "Hamilton 원리"
+      - "일반화좌표"
+      - "Lagrangian L = T - V"
+      - "Lagrange 방정식 유도"
+      - "평형점과 선형화"
+      - "안정성 판별"
+    lecture_ref: "Lecture 5-6, 9-10"
+
+  - number: 5
+    title: "Multi-DOF Systems and Modal Analysis"
+    topics:
+      - "M, C, K 행렬 조립"
+      - "고유값 문제 Ku = lambda*Mu"
+      - "M-직교성, K-직교성"
+      - "질량 정규화"
+      - "모드형상"
+      - "모달 분석"
+      - "비례감쇠 (Rayleigh)"
+      - "Rayleigh 몫"
+    lecture_ref: "Lecture 11"
+
+  - number: 6
+    title: "State-Space and Damping Methods"
+    topics:
+      - "상태변수 변환"
+      - "구조감쇠 (structural damping)"
+      - "비비례감쇠 (nonproportional damping)"
+      - "복소 모드형상"
+    lecture_ref: "Lecture 7-8, 12"
+
+  - number: 7
+    title: "Gyroscopic and Nonconservative Systems"
+    topics:
+      - "자이로스코픽 행렬 G (반대칭)"
+      - "자이로스코픽 힘 에너지 불변"
+      - "자이로스코픽 안정화"
+      - "비보존력 행렬 N"
+      - "Flutter 불안정성"
+      - "복소 고유값 분석"
+      - "좌/우 고유벡터"
+      - "이중직교성 (bi-orthogonality)"
+      - "안정성 경계"
+    lecture_ref: "Lecture 12-13"
+
+# Quick lookup: topic → relevant lectures
+topic_lookup:
+  linearity_superposition:
+    lectures: [2]
+    rules: [rule_001, rule_002, rule_003, rule_004, rule_005]
+  frf_convolution:
+    lectures: [3, 4, 7]
+    rules: [rule_006, rule_007, rule_008, rule_009, rule_010, rule_049, rule_057]
+  state_equations:
+    lectures: [3]
+    rules: [rule_011, rule_012, rule_013, rule_014, rule_052]
+  virtual_work_lagrange:
+    lectures: [5, 6, 9]
+    rules: [rule_015, rule_016, rule_017, rule_018, rule_019, rule_020, rule_050, rule_059]
+  structural_damping:
+    lectures: [7, 8]
+    rules: [rule_021, rule_022, rule_023]
+  eigenvalue_problems:
+    lectures: [11]
+    rules: [rule_024, rule_025, rule_026, rule_027, rule_053, rule_060]
+  modal_analysis:
+    lectures: [11, 12]
+    rules: [rule_028, rule_029, rule_030, rule_051]
+  stability:
+    lectures: [9, 10]
+    rules: [rule_031, rule_032, rule_033, rule_034, rule_035, rule_054, rule_014]
+  gyroscopic_nonconservative:
+    lectures: [12, 13]
+    rules: [rule_036, rule_037, rule_038, rule_039, rule_040, rule_041, rule_055]
+  damping:
+    lectures: [8, 11, 12]
+    rules: [rule_042, rule_043, rule_044, rule_045, rule_046, rule_056]
+  natural_frequency:
+    lectures: [2, 11]
+    rules: [rule_047, rule_048]
+
+# Midterm exam coverage summary (based on 2020-2025 exams)
+exam_coverage:
+  recurring_tf_topics:
+    - "Linearity: homogeneity + additivity (both required)"
+    - "Convolution (time domain) vs multiplication (frequency domain)"
+    - "State vector dimension = p * n"
+    - "Structural damping: valid ONLY for harmonic excitation"
+    - "Gyroscopic matrix is skew-symmetric, does NO work"
+    - "Modal superposition is EXACT for proportional damping"
+    - "Mass normalization: U^T M U = I"
+    - "Bi-orthogonality for asymmetric systems"
+    - "Left vs right eigenvectors for nonproportional/gyroscopic systems"
+    - "Stability: Re(lambda) < 0 for asymptotic stability"
+
+  recurring_calculation_types:
+    - "FRF decomposition: 3rd order → 1st + 2nd order partial fractions"
+    - "Lagrange EOM for rotating systems (hoop, triangle, bead)"
+    - "Equilibrium + linearization + stability chain"
+    - "2-DOF symmetric EVP + mass normalization"
+    - "Proportional damping: modal decoupling + damped response"
+    - "State-space formulation for gyroscopic system"

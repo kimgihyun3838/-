@@ -1,0 +1,13 @@
+build/
+dist/
+src/build/
+src/dist/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.env
+*.log
