@@ -126,23 +126,140 @@ def parse_matrix(input_str: str) -> list[list[float]]:
     """Parse a matrix string like '9,0;0,9' into [[9,0],[0,9]].
 
     Rows are separated by ';', columns by ','.
+    Supports math expressions: sqrt(3), pi, wn^2, 2*zeta*wn, etc.
+    Undefined symbols will be prompted for their numeric values.
     """
     input_str = input_str.strip()
     if not input_str:
         raise ValueError("빈 입력입니다.")
     rows = input_str.split(";")
-    matrix = []
+
+    # Fast path: try pure numeric
+    try:
+        matrix: list[list[float]] = []
+        for row in rows:
+            row = row.strip()
+            if not row:
+                continue
+            matrix.append([float(x.strip()) for x in row.split(",")])
+        ncols = len(matrix[0])
+        for i, r in enumerate(matrix):
+            if len(r) != ncols:
+                raise ValueError(
+                    f"행 {i+1}의 열 수({len(r)})가 첫 행({ncols})과 다릅니다."
+                )
+        return matrix
+    except ValueError:
+        pass
+
+    # Fallback: sympy expression parsing
+    return _parse_matrix_symbolic(input_str)
+
+
+def _parse_matrix_symbolic(input_str: str) -> list[list[float]]:
+    """Parse matrix with symbolic math expressions, prompting for values."""
+    import sympy as sp
+
+    _sym_ns: dict[str, Any] = {
+        "sqrt": sp.sqrt, "pi": sp.pi, "exp": sp.exp,
+        "sin": sp.sin, "cos": sp.cos, "abs": sp.Abs,
+        "wn": sp.Symbol("omega_n", positive=True),
+        "omega_n": sp.Symbol("omega_n", positive=True),
+        "zeta": sp.Symbol("zeta", positive=True),
+        "wd": sp.Symbol("omega_d", positive=True),
+        "omega_d": sp.Symbol("omega_d", positive=True),
+        "m": sp.Symbol("m", positive=True),
+        "k": sp.Symbol("k", positive=True),
+        "c": sp.Symbol("c", positive=True),
+        "F0": sp.Symbol("F_0", positive=True),
+        "a": sp.Symbol("a", positive=True),
+    }
+
+    rows = input_str.split(";")
+    sym_matrix: list[list[sp.Expr]] = []
+    all_symbols: set[sp.Symbol] = set()
+
     for row in rows:
         row = row.strip()
         if not row:
             continue
-        matrix.append([float(x.strip()) for x in row.split(",")])
+        sym_row: list[sp.Expr] = []
+        for entry in row.split(","):
+            entry = entry.strip().replace("^", "**")
+            try:
+                sym_row.append(sp.Float(float(entry)))
+            except ValueError:
+                expr = sp.sympify(entry, locals=_sym_ns)
+                sym_row.append(expr)
+                all_symbols.update(expr.free_symbols)
+        sym_matrix.append(sym_row)
+
     # Validate rectangular
-    ncols = len(matrix[0])
-    for i, row in enumerate(matrix):
-        if len(row) != ncols:
-            raise ValueError(f"행 {i+1}의 열 수({len(row)})가 첫 행({ncols})과 다릅니다.")
-    return matrix
+    ncols = len(sym_matrix[0])
+    for i, r in enumerate(sym_matrix):
+        if len(r) != ncols:
+            raise ValueError(
+                f"행 {i+1}의 열 수({len(r)})가 첫 행({ncols})과 다릅니다."
+            )
+
+    # Prompt for symbol values
+    if all_symbols:
+        sorted_syms = sorted(all_symbols, key=str)
+        print(f"\n  심볼 발견: {', '.join(str(s) for s in sorted_syms)}")
+        subs: dict[sp.Symbol, float] = {}
+        for sym in sorted_syms:
+            val_str = input(f"  {sym} = ").strip()
+            if not val_str:
+                raise ValueError(f"'{sym}'의 값이 필요합니다.")
+            subs[sym] = float(val_str)
+        return [[float(e.subs(subs)) for e in r] for r in sym_matrix]
+
+    return [[float(e) for e in r] for r in sym_matrix]
+
+
+def parse_matrix_sympy(input_str: str):
+    """Parse matrix keeping symbols — returns (sympy.Matrix, has_symbols).
+
+    Supported names: wn/omega_n, zeta, wd/omega_d, sigma, m, k, c, F0, a, t1,
+                     sqrt(), pi, exp()
+    """
+    import sympy as sp
+
+    _sym_ns: dict[str, Any] = {
+        "sqrt": sp.sqrt, "pi": sp.pi, "exp": sp.exp,
+        "sin": sp.sin, "cos": sp.cos, "abs": sp.Abs,
+        "wn": sp.Symbol("omega_n", positive=True),
+        "omega_n": sp.Symbol("omega_n", positive=True),
+        "zeta": sp.Symbol("zeta", positive=True),
+        "wd": sp.Symbol("omega_d", positive=True),
+        "omega_d": sp.Symbol("omega_d", positive=True),
+        "sigma": sp.Symbol("sigma", positive=True),
+        "m": sp.Symbol("m", positive=True),
+        "k": sp.Symbol("k", positive=True),
+        "c": sp.Symbol("c", nonnegative=True),
+        "F0": sp.Symbol("F_0", positive=True),
+        "a": sp.Symbol("a", positive=True),
+        "t1": sp.Symbol("t_1", positive=True),
+    }
+
+    input_str = input_str.strip()
+    rows = input_str.split(";")
+    matrix_data: list[list[Any]] = []
+
+    for row in rows:
+        row = row.strip()
+        if not row:
+            continue
+        sym_row = []
+        for entry in row.split(","):
+            entry = entry.strip().replace("^", "**")
+            expr = sp.sympify(entry, locals=_sym_ns)
+            sym_row.append(expr)
+        matrix_data.append(sym_row)
+
+    mat = sp.Matrix(matrix_data)
+    has_symbols = len(mat.free_symbols) > 0
+    return mat, has_symbols
 
 
 def parse_vector(input_str: str) -> list[float]:
@@ -214,6 +331,22 @@ def _parse_forcing_string(force_str: str) -> dict[str, Any]:
             F0 = -1.0
         return {"type": "ramp", "F0": F0}
 
+    # Truncated exponential: "5exp(-2t),t1=3", "exp(-0.5t),0,3"
+    m_exp_trunc = re.fullmatch(
+        r"([+-]?\d*\.?\d*)\s*(?:exp|e\^?)\s*\(\s*(-?\d*\.?\d+)\s*\*?\s*t\s*\)"
+        r"\s*,\s*(?:t1\s*=\s*)?(\d+\.?\d*)",
+        lower,
+    )
+    if m_exp_trunc:
+        coeff = m_exp_trunc.group(1)
+        F0 = float(coeff) if coeff and coeff not in ("+", "-", "") else 1.0
+        if coeff == "-":
+            F0 = -1.0
+        a = float(m_exp_trunc.group(2))
+        t1 = float(m_exp_trunc.group(3))
+        return {"type": "exp_truncated", "F0": F0, "a": -a, "t1": t1,
+                "amplitude": [1.0]}
+
     # Exponential: "exp(-2t)", "e^(-3t)", "5exp(-2t)"
     m_exp = re.fullmatch(
         r"([+-]?\d*\.?\d*)\s*(?:exp|e\^?)\s*\(\s*(-?\d*\.?\d+)\s*\*?\s*t\s*\)",
@@ -225,7 +358,7 @@ def _parse_forcing_string(force_str: str) -> dict[str, Any]:
         if coeff == "-":
             F0 = -1.0
         a = float(m_exp.group(2))
-        return {"type": "exponential", "F0": F0, "a": a}
+        return {"type": "exponential", "F0": F0, "a": -a, "amplitude": [1.0]}
 
     # Pure constant: just a number like "3", "0.5"
     m_const = re.fullmatch(r"([+-]?\d+\.?\d*)", lower)
@@ -282,6 +415,50 @@ def _parse_forcing_string(force_str: str) -> dict[str, Any]:
             "type": "general_harmonic",
             "components": components,
         }
+
+
+def _input_piecewise_forcing() -> dict[str, Any]:
+    """Interactive piecewise forcing input for symbolic mode.
+
+    Returns {"type": "piecewise", "pieces": [{"expr": ..., "start": ..., "end": ...}, ...]}.
+    """
+    print()
+    print("  구간별 f(t) 정의  (tau는 적분변수)")
+    print("  사용 가능: F0, F1, a, b, omega, m, k, t1, t2, t3,")
+    print("             exp(), sin(), cos(), sqrt(), pi")
+    print("  마지막 구간은 자동으로 f=0 (자유진동) 처리됩니다.")
+    print()
+
+    pieces: list[dict[str, str]] = []
+    idx = 1
+    prev_end = "0"
+
+    while True:
+        print(f"  --- 구간 {idx} ---")
+        expr_str = input(f"  f(t) 수식 (Enter for 0 → 종료): ").strip()
+        if not expr_str or expr_str == "0":
+            break
+
+        start = prev_end
+        end_str = input(f"  구간 끝 (시작={start}, Enter for inf): ").strip()
+        if not end_str:
+            end_str = "inf"
+
+        pieces.append({"expr": expr_str, "start": start, "end": end_str})
+        prev_end = end_str
+        idx += 1
+
+        if end_str.lower() in ("inf", "oo"):
+            break
+
+    # Add trailing zero region if last piece didn't end at inf
+    if pieces and pieces[-1]["end"].lower() not in ("inf", "oo"):
+        pieces.append({"expr": "0", "start": pieces[-1]["end"], "end": "inf"})
+
+    if not pieces:
+        pieces = [{"expr": "0", "start": "0", "end": "inf"}]
+
+    return {"type": "piecewise", "pieces": pieces}
 
 
 def _input_with_default(prompt: str, default: str = "") -> str:
@@ -502,14 +679,109 @@ def _handle_state_space() -> None:
     from ..core.state_space import StateSpaceSolver
 
     print("\n=== State-Space / 전이행렬 (상태방정식) ===")
-    print("두 가지 입력 방식 중 선택하세요:")
-    print("  a) 상태행렬 직접 입력 (A, B, x0)")
+    print("입력 방식을 선택하세요:")
+    print("  a) 상태행렬 직접 입력 — 숫자 (A, B, x0)")
     print("  b) 2차 시스템 변환 (M, C, K → state-space)")
+    print("  s) 심볼릭 (wn, zeta 등 문자 그대로 풀이)")
     print()
 
-    mode = _input_with_default("입력 방식 (a/b)", "a").lower()
+    mode = _input_with_default("입력 방식 (a/b/s)", "a").lower()
 
     params: dict[str, Any] = {}
+
+    if mode == "s":
+        # ── Symbolic mode ──
+        params["mode"] = "symbolic"
+        print("\nẋ = Ax + Bu  (심볼릭)")
+        print("행렬 입력: 행은 ';', 열은 ',' 구분")
+        print("  사용 가능 심볼: wn(ωn), zeta(ζ), wd(ωd), sigma(σ),")
+        print("                  m, k, c, F0, a, t1, sqrt(), pi")
+        print("  예: 0,1;-wn^2,-2*zeta*wn")
+        print()
+
+        A_str = input("A (상태행렬): ").strip()
+        if not A_str:
+            print("  입력이 없습니다.")
+            return
+        A_sym, _ = parse_matrix_sympy(A_str)
+        params["A_sym"] = A_sym
+        n = A_sym.shape[0]
+
+        B_str = input("B (입력행렬, Enter to skip): ").strip()
+        if B_str:
+            B_sym, _ = parse_matrix_sympy(B_str)
+            params["B_sym"] = B_sym
+
+        x0_str = input(f"x(0) (Enter for 영벡터): ").strip()
+        if x0_str:
+            import sympy as sp
+            x0_sym, _ = parse_matrix_sympy(x0_str)
+            # If parsed as row, transpose to column
+            if x0_sym.shape[0] == 1:
+                x0_sym = x0_sym.T
+            params["x0_sym"] = x0_sym
+
+        # ωd substitution option
+        if A_sym.has(*[s for s in A_sym.free_symbols if "omega_n" in str(s)]):
+            use_wd = _input_with_default(
+                "ωd = ωn√(1-ζ²) 치환 사용? (y/n)", "y"
+            ).lower()
+            params["use_omega_d"] = use_wd in ("y", "yes", "ㅛ")
+
+        # Forcing (symbolic mode — template-based)
+        print()
+        print("강제 입력 f(t) 유형 선택 (Enter to skip):")
+        print("  1) step        → F0·u(t)")
+        print("  2) exp         → F0·e^(-a·t),  t ≥ 0")
+        print("  3) exp_trunc   → F0·e^(-a·t),  0 < t < t1  (★ Problem 3)")
+        print("  4) impulse     → F0·δ(t)")
+        print("  5) piecewise   → 구간별 직접 정의 (N개 구간)")
+        print("  6) 숫자 직접 입력  (예: exp(-2t),t1=3)")
+        force_choice = input("유형 (1-6 또는 Enter): ").strip()
+        if force_choice:
+            if force_choice in ("1", "step"):
+                params["forcing"] = {"type": "step", "F0": "F0"}
+            elif force_choice in ("2", "exp"):
+                params["forcing"] = {
+                    "type": "exponential", "F0": "F0", "a": "a",
+                }
+            elif force_choice in ("3", "exp_trunc", "exp_truncated"):
+                params["forcing"] = {
+                    "type": "exp_truncated", "F0": "F0", "a": "a", "t1": "t1",
+                }
+            elif force_choice in ("4", "impulse"):
+                params["forcing"] = {"type": "impulse", "F0": "F0"}
+            elif force_choice in ("5", "piecewise", "pw"):
+                params["forcing"] = _input_piecewise_forcing()
+            elif force_choice == "6":
+                raw = input("f(t) = ").strip()
+                forcing = _parse_forcing_string(raw)
+                params["forcing"] = forcing
+            else:
+                try:
+                    forcing = _parse_forcing_string(force_choice)
+                    params["forcing"] = forcing
+                except ValueError:
+                    print(f"  인식할 수 없는 입력: '{force_choice}' — 강제 입력 건너뜀")
+
+            # Ask whether to keep symbolic or substitute numeric values
+            if "forcing" in params and params["forcing"].get("type") != "piecewise":
+                sym_or_num = _input_with_default(
+                    "파라미터를 문자로 유지? (y=심볼릭 / n=숫자 입력)", "y",
+                ).lower()
+                if sym_or_num not in ("y", "yes", "ㅛ"):
+                    f = params["forcing"]
+                    for key in ("F0", "a", "t1"):
+                        if key in f and isinstance(f[key], str):
+                            val = input(f"  {key} = ").strip()
+                            if val:
+                                f[key] = float(val)
+
+        solver = StateSpaceSolver()
+        result = solver.solve(params)
+        display_result(result)
+        ask_save(result)
+        return
 
     if mode == "b":
         # Second-order mode
@@ -549,6 +821,7 @@ def _handle_state_space() -> None:
         params["mode"] = "state_matrix"
         print("\nẋ = Ax + Bu")
         print("행렬 입력: 행은 ';', 열은 ',' 구분 (예: 0,1;-4,-2)")
+        print("  수식 가능: wn^2, 2*zeta*wn, sqrt(3) 등 → 값 입력 프롬프트")
         print()
 
         A_str = input("A (상태행렬): ").strip()
@@ -570,6 +843,7 @@ def _handle_state_space() -> None:
     print("강제 입력 f(t) (Enter to skip):")
     print("  조화: cos, 3cos2, 5sin(3), 2cos(1)+3sin(4)")
     print("  특수: impulse, step, 3step, ramp, exp(-2t)")
+    print("  절삭: exp(-2t),t1=3  → F0·e^(-at), 0<t<t1")
     force_str = input("f(t) = ").strip()
     if force_str:
         params["forcing"] = _parse_forcing_string(force_str)

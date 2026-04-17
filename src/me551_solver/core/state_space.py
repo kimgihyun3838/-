@@ -324,6 +324,23 @@ def _parse_forcing(forcing_desc: Any) -> Callable | None:
                 return np.zeros_like(amplitude)
             return f_impulse
 
+        elif f_type == "exponential":
+            F0_val = forcing_desc.get("F0", 1.0)
+            a_val = forcing_desc.get("a", 1.0)
+            def f_exponential(t):
+                return amplitude * F0_val * np.exp(-a_val * t)
+            return f_exponential
+
+        elif f_type == "exp_truncated":
+            F0_val = forcing_desc.get("F0", 1.0)
+            a_val = forcing_desc.get("a", 1.0)
+            t1_val = forcing_desc.get("t1", 1.0)
+            def f_exp_trunc(t):
+                if 0 <= t <= t1_val:
+                    return amplitude * F0_val * np.exp(-a_val * t)
+                return np.zeros_like(amplitude)
+            return f_exp_trunc
+
         else:
             raise ValueError(f"Unknown forcing type: {f_type}")
 
@@ -355,6 +372,8 @@ class StateSpaceSolver(BaseSolver):
             return self._solve_state_matrix(params)
         elif mode == "second_order":
             return self._solve_second_order(params)
+        elif mode == "symbolic":
+            return self._solve_symbolic(params)
         else:
             raise ValueError(f"Unknown mode: {mode}")
 
@@ -443,7 +462,499 @@ class StateSpaceSolver(BaseSolver):
         )
 
     # -------------------------------------------------------------------
-    # Core analysis engine
+    # Mode 3: Fully symbolic (sympy matrices, no numeric conversion)
+    # -------------------------------------------------------------------
+    def _solve_symbolic(self, params: dict) -> SolverResult:
+        """Fully symbolic state-space analysis — ωn, ζ, ωd 등 문자 그대로 출력.
+
+        params:
+            A_sym: sympy.Matrix  (state matrix with symbols)
+            B_sym: sympy.Matrix  (input matrix, optional)
+            x0_sym: sympy.Matrix (initial state, optional)
+            forcing: dict        (same format as numeric mode)
+            use_omega_d: bool    (True → introduce ωd = ωn√(1-ζ²) for clean output)
+        """
+        import sympy as sp
+        from sympy import (
+            Symbol, Matrix, eye, exp, cos, sin, sqrt, Rational,
+            simplify, trigsimp, expand, expand_trig,
+            inverse_laplace_transform, Heaviside, nsimplify,
+        )
+
+        A_sym: sp.Matrix = params["A_sym"]
+        B_sym: sp.Matrix | None = params.get("B_sym")
+        x0_sym: sp.Matrix | None = params.get("x0_sym")
+        forcing = params.get("forcing")
+        use_omega_d = params.get("use_omega_d", True)
+
+        n = A_sym.shape[0]
+        if x0_sym is None:
+            x0_sym = sp.zeros(n, 1)
+
+        t_s = Symbol("t", positive=True)
+        tau_s = Symbol("tau", positive=True)
+        s = Symbol("s")
+
+        steps: list[tuple[str, Any]] = []
+        final_answer: dict[str, Any] = {"mode": "symbolic"}
+        sanity_parts: list[str] = []
+
+        # ── optional ωd substitution for cleaner output ──
+        omega_n = Symbol("omega_n", positive=True)
+        zeta = Symbol("zeta", positive=True)
+        omega_d = Symbol("omega_d", positive=True)
+        sigma_sym = Symbol("sigma", positive=True)
+
+        A_work = A_sym
+        wd_subs_info = ""
+        if use_omega_d:
+            # Replace omega_n^2 → sigma^2 + omega_d^2, 2*zeta*omega_n → 2*sigma
+            # where sigma = zeta*omega_n, omega_d = omega_n*sqrt(1-zeta^2)
+            if A_sym.has(omega_n) and A_sym.has(zeta):
+                A_work = A_sym.subs([
+                    (zeta * omega_n, sigma_sym),
+                    (omega_n**2, sigma_sym**2 + omega_d**2),
+                ])
+                # Double check: also try to catch 2*omega_n*zeta patterns
+                A_work = A_work.subs(omega_n * zeta, sigma_sym)
+                wd_subs_info = (
+                    "치환: σ = ζωₙ,  ωd = ωₙ√(1-ζ²),  ωₙ² = σ² + ωd²\n"
+                    "  (underdamped 가정: ζ < 1)\n"
+                )
+
+        # ── 1. Display matrices ──
+        steps.append((
+            "State equation",
+            f"ẋ = Ax + Bu\n\n"
+            f"A = {A_sym}\n"
+            + (f"B = {B_sym}\n" if B_sym is not None else "")
+            + f"x(0) = {x0_sym.T}\n"
+            + (f"\n{wd_subs_info}" if wd_subs_info else "")
+            + (f"Working A (치환 후) = {A_work}" if A_work != A_sym else ""),
+        ))
+
+        # ── 2. Characteristic polynomial ──
+        sI_A = s * eye(n) - A_work
+        char_poly = expand(sI_A.det())
+        steps.append((
+            "Characteristic polynomial",
+            f"det(sI - A) = {char_poly}",
+        ))
+        final_answer["char_poly"] = str(char_poly)
+
+        # ── 3. Eigenvalues ──
+        eigenvals = A_work.eigenvals()
+        eig_strs = []
+        for ev, mult in eigenvals.items():
+            ev_simplified = simplify(ev)
+            label = f"  λ = {ev_simplified}"
+            if mult > 1:
+                label += f"  (multiplicity {mult})"
+            eig_strs.append(label)
+        steps.append(("Eigenvalues", "\n".join(eig_strs)))
+        final_answer["eigenvalues"] = [str(ev) for ev in eigenvals.keys()]
+
+        # ── 4. Transition matrix Φ(t) via Laplace ──
+        adj = sI_A.adjugate()
+        Phi = sp.zeros(n, n)
+        phi_strs = []
+        for i in range(n):
+            for j in range(n):
+                F_s = adj[i, j] / char_poly
+                f_t = inverse_laplace_transform(F_s, s, t_s)
+                f_t = f_t.rewrite(sp.exp)
+                f_t = f_t.replace(Heaviside(t_s), sp.Integer(1))
+                f_t = f_t.replace(Heaviside, lambda *a: sp.Integer(1))
+                f_t = simplify(trigsimp(f_t.rewrite(cos)))
+                Phi[i, j] = f_t
+                phi_strs.append(f"  Φ_{i + 1}{j + 1}(t) = {f_t}")
+
+        steps.append(("Transition matrix Φ(t) = e^(At)", "\n".join(phi_strs)))
+        final_answer["Phi"] = str(Phi)
+
+        # ── 5. Free response (if non-zero IC) ──
+        if x0_sym != sp.zeros(n, 1):
+            x_free = simplify(Phi * x0_sym)
+            free_strs = [
+                f"  x_{i + 1}(t) = {x_free[i, 0]}" for i in range(n)
+            ]
+            steps.append((
+                "Free response: x(t) = Φ(t)·x(0)",
+                "\n".join(free_strs),
+            ))
+
+        # ── 6. Forced response ──
+        if forcing and B_sym is not None:
+            # Adapt B to same substitution
+            B_work = B_sym
+            if use_omega_d and B_sym.has(omega_n) and A_sym.has(zeta):
+                B_work = B_sym.subs([
+                    (zeta * omega_n, sigma_sym),
+                    (omega_n**2, sigma_sym**2 + omega_d**2),
+                ])
+
+            self._symbolic_forced_full(
+                Phi, A_work, B_work, x0_sym, n, t_s, tau_s,
+                forcing, steps, final_answer,
+            )
+
+        # ── Sanity ──
+        # Phi(0) = I check (symbolic)
+        Phi_0 = Phi.subs(t_s, 0)
+        phi0_ok = simplify(Phi_0 - eye(n)) == sp.zeros(n, n)
+        sanity_parts.append(f"Φ(0) = I: {'PASS' if phi0_ok else 'CHECK — ' + str(Phi_0)}")
+
+        return SolverResult(
+            problem_type="State-Space Analysis (Symbolic)",
+            given={"A": str(A_sym),
+                   "B": str(B_sym) if B_sym else "None",
+                   "x0": str(x0_sym.T)},
+            steps=steps,
+            final_answer=final_answer,
+            sanity_check="\n".join(sanity_parts),
+        )
+
+    def _symbolic_forced_full(
+        self,
+        Phi: "sp.Matrix",
+        A_work: "sp.Matrix",
+        B_work: "sp.Matrix",
+        x0_sym: "sp.Matrix",
+        n: int,
+        t_s: "sp.Symbol",
+        tau_s: "sp.Symbol",
+        forcing: dict,
+        steps: list[tuple[str, Any]],
+        final_answer: dict[str, Any],
+    ) -> None:
+        """Symbolic forced response via transition matrix convolution.
+
+        Supports: step, exponential, exp_truncated, piecewise (N regions).
+        For piecewise, forcing["pieces"] is a list of dicts:
+            [{"expr": "F0*exp(-a*tau)", "start": 0, "end": "t1"},
+             {"expr": "F1*sin(omega*tau)", "start": "t1", "end": "t2"},
+             {"expr": "0", "start": "t2", "end": "inf"}]
+        """
+        import sympy as sp
+        from sympy import simplify, nsimplify, oo
+
+        f_type = forcing.get("type", "")
+
+        def _pp(val, name, **kw):
+            if isinstance(val, str):
+                return sp.Symbol(name, **kw)
+            return nsimplify(val)
+
+        Phi_shifted = Phi.subs(t_s, t_s - tau_s)
+        PhiB = Phi_shifted * B_work
+
+        # ── Piecewise forcing (general N-region) ──
+        if f_type == "piecewise":
+            self._symbolic_piecewise_convolution(
+                Phi, PhiB, B_work, x0_sym, n, t_s, tau_s,
+                forcing, steps, final_answer,
+            )
+            return
+
+        # ── Single-expression forcing types ──
+        F0 = _pp(forcing.get("F0", 1), "F_0", positive=True)
+        a_p = _pp(forcing.get("a", 1), "a", positive=True)
+
+        if f_type == "exponential":
+            f_tau = F0 * sp.exp(-a_p * tau_s)
+            integrand = PhiB * f_tau
+
+            steps.append((
+                "Convolution integral (exponential forcing)",
+                f"f(t) = {F0}·e^(-{a_p}·t),  t ≥ 0\n\n"
+                f"x(t) = Φ(t)·x₀ + ∫₀ᵗ Φ(t-τ)·B·f(τ) dτ",
+            ))
+
+            x_forced = sp.zeros(n, 1)
+            r_lines = []
+            for i in range(n):
+                result = self._sym_integrate_conv(
+                    integrand[i, 0], tau_s, sp.S.Zero, t_s,
+                )
+                x_forced[i, 0] = result
+
+            x_free = Phi * x0_sym
+            for i in range(n):
+                total = simplify(x_free[i, 0] + x_forced[i, 0])
+                r_lines.append(f"  x_{i + 1}(t) = {total}")
+
+            steps.append(("Closed-form response", "\n".join(r_lines)))
+            final_answer["forced_response_symbolic"] = "\n".join(r_lines)
+
+        elif f_type == "exp_truncated":
+            # Convert to piecewise internally
+            t1 = _pp(forcing.get("t1", 1), "t_1", positive=True)
+            pw_forcing = {
+                "type": "piecewise",
+                "pieces": [
+                    {"expr": F0 * sp.exp(-a_p * tau_s), "start": sp.S.Zero, "end": t1},
+                    {"expr": sp.S.Zero, "start": t1, "end": oo},
+                ],
+            }
+            self._symbolic_piecewise_convolution(
+                Phi, PhiB, B_work, x0_sym, n, t_s, tau_s,
+                pw_forcing, steps, final_answer,
+            )
+
+        elif f_type == "step":
+            f_tau = F0
+            integrand = PhiB * f_tau
+            steps.append((
+                "Step response (symbolic)",
+                f"f(t) = {F0}·u(t)\n\n"
+                f"x(t) = Φ(t)·x₀ + ∫₀ᵗ Φ(t-τ)·B·{F0} dτ",
+            ))
+            x_forced = sp.zeros(n, 1)
+            r_lines = []
+            for i in range(n):
+                result = self._sym_integrate_conv(
+                    integrand[i, 0], tau_s, sp.S.Zero, t_s,
+                )
+                x_forced[i, 0] = result
+            x_free = Phi * x0_sym
+            for i in range(n):
+                total = simplify(x_free[i, 0] + x_forced[i, 0])
+                r_lines.append(f"  x_{i + 1}(t) = {total}")
+            steps.append(("Closed-form step response", "\n".join(r_lines)))
+            final_answer["forced_response_symbolic"] = "\n".join(r_lines)
+
+    # -------------------------------------------------------------------
+    # General piecewise convolution via transition matrix
+    # -------------------------------------------------------------------
+    def _symbolic_piecewise_convolution(
+        self,
+        Phi: "sp.Matrix",
+        PhiB: "sp.Matrix",
+        B_work: "sp.Matrix",
+        x0_sym: "sp.Matrix",
+        n: int,
+        t_s: "sp.Symbol",
+        tau_s: "sp.Symbol",
+        forcing: dict,
+        steps: list[tuple[str, Any]],
+        final_answer: dict[str, Any],
+    ) -> None:
+        """N-region piecewise forcing via transition matrix.
+
+        Strategy:
+          For each time region k (t_{k-1} < t < t_k):
+            x(t) = Φ(t - t_{k-1}) · x(t_{k-1})           (propagate prior state)
+                 + ∫_{t_{k-1}}^{t} Φ(t-τ) · B · f_k(τ) dτ  (current forcing)
+
+          At each boundary t_k:
+            x(t_k) = evaluated from above
+
+          For regions where f(t) = 0:
+            x(t) = Φ(t - t_{k-1}) · x(t_{k-1})           (pure free vibration)
+        """
+        import sympy as sp
+        from sympy import simplify, oo
+
+        pieces = forcing["pieces"]
+        # Each piece: {"expr": sympy_expr_in_tau, "start": sym, "end": sym}
+        # If expr/start/end are strings, parse them
+        _sym_ns = {
+            "tau": tau_s, "t": tau_s,
+            "F0": sp.Symbol("F_0", positive=True),
+            "F_0": sp.Symbol("F_0", positive=True),
+            "F1": sp.Symbol("F_1", positive=True),
+            "F_1": sp.Symbol("F_1", positive=True),
+            "a": sp.Symbol("a", positive=True),
+            "b": sp.Symbol("b", positive=True),
+            "omega": sp.Symbol("omega", positive=True),
+            "w": sp.Symbol("omega", positive=True),
+            "t1": sp.Symbol("t_1", positive=True),
+            "t_1": sp.Symbol("t_1", positive=True),
+            "t2": sp.Symbol("t_2", positive=True),
+            "t_2": sp.Symbol("t_2", positive=True),
+            "t3": sp.Symbol("t_3", positive=True),
+            "t_3": sp.Symbol("t_3", positive=True),
+            "m": sp.Symbol("m", positive=True),
+            "k": sp.Symbol("k", positive=True),
+            "exp": sp.exp, "sin": sp.sin, "cos": sp.cos,
+            "sqrt": sp.sqrt, "pi": sp.pi,
+        }
+
+        def _to_sym(val):
+            if isinstance(val, sp.Basic):
+                return val
+            s = str(val).strip()
+            if s.lower() in ("inf", "oo", "infinity"):
+                return oo
+            return sp.sympify(s, locals=_sym_ns)
+
+        parsed_pieces: list[tuple[sp.Expr, sp.Expr, sp.Expr]] = []
+        desc_lines = []
+        for p in pieces:
+            expr = _to_sym(p["expr"])
+            lo = _to_sym(p["start"])
+            hi = _to_sym(p["end"])
+            parsed_pieces.append((expr, lo, hi))
+            if hi == oo:
+                desc_lines.append(f"  f(t) = {expr},  t > {lo}")
+            else:
+                desc_lines.append(f"  f(t) = {expr},  {lo} < t < {hi}")
+
+        # Collect boundary points (exclude 0 and ∞)
+        boundaries: list[sp.Expr] = []
+        for _, lo, hi in parsed_pieces:
+            if lo != 0 and lo != sp.S.Zero and lo not in boundaries:
+                boundaries.append(lo)
+            if hi != oo and not hi.is_infinite and hi not in boundaries:
+                boundaries.append(hi)
+        # Sort by symbol name (can't numerically sort symbols)
+        boundaries = sorted(set(boundaries), key=str)
+
+        # Build time regions:
+        # Region 0: 0 < t < boundaries[0]
+        # Region 1: boundaries[0] < t < boundaries[1]
+        # ...
+        # Region N: t > boundaries[-1]
+        region_bounds: list[tuple[sp.Expr, sp.Expr]] = []
+        prev = sp.S.Zero
+        for bp in boundaries:
+            region_bounds.append((prev, bp))
+            prev = bp
+        region_bounds.append((prev, oo))
+
+        steps.append((
+            "Piecewise forcing definition",
+            "f(t) = {\n" + "\n".join(desc_lines) + "\n}\n\n"
+            f"Boundary points: {', '.join(str(b) for b in boundaries)}\n"
+            f"Time regions: {len(region_bounds)}",
+        ))
+
+        steps.append((
+            "Transition matrix approach",
+            "각 구간에서:\n"
+            "  x(t) = Φ(t - tₖ₋₁)·x(tₖ₋₁) + ∫_{tₖ₋₁}^{t} Φ(t-τ)·B·fₖ(τ) dτ\n"
+            "  f(t)=0인 구간: x(t) = Φ(t - tₖ₋₁)·x(tₖ₋₁)  (자유진동)",
+        ))
+
+        # ── Solve region by region ──
+        x_current = x0_sym  # state at start of current region
+        all_regions = []
+
+        for region_idx, (r_lo, r_hi) in enumerate(region_bounds):
+            region_num = region_idx + 1
+            if r_hi == oo:
+                region_label = f"Region {region_num} (t > {r_lo})"
+            else:
+                region_label = f"Region {region_num} ({r_lo} < t < {r_hi})"
+
+            # Which piece is active in this region?
+            f_active = sp.S.Zero
+            for expr, p_lo, p_hi in parsed_pieces:
+                # Check if region overlaps with piece interval
+                if self._intervals_overlap(r_lo, r_hi, p_lo, p_hi):
+                    f_active = expr
+                    break
+
+            if f_active == 0 or f_active == sp.S.Zero:
+                # Pure free vibration: x(t) = Φ(t - r_lo) · x(r_lo)
+                Phi_shift = Phi.subs(t_s, t_s - r_lo)
+                x_region = simplify(Phi_shift * x_current)
+
+                r_lines = [f"  x_{i + 1}(t) = {x_region[i, 0]}" for i in range(n)]
+                steps.append((
+                    region_label,
+                    f"f(t) = 0  →  자유진동\n"
+                    f"x(t) = Φ(t - {r_lo}) · x({r_lo})\n\n"
+                    + "\n".join(r_lines),
+                ))
+            else:
+                # Forced: x(t) = Φ(t-r_lo)·x(r_lo) + ∫_{r_lo}^{t} Φ(t-τ)·B·f(τ) dτ
+                # Free part
+                Phi_shift_free = Phi.subs(t_s, t_s - r_lo)
+                x_free_part = Phi_shift_free * x_current
+
+                # Forced part: ∫_{r_lo}^{t} Φ(t-τ)·B·f(τ) dτ
+                integrand = PhiB * f_active
+                x_forced_part = sp.zeros(n, 1)
+                for i in range(n):
+                    result = self._sym_integrate_conv(
+                        integrand[i, 0], tau_s, r_lo, t_s,
+                    )
+                    x_forced_part[i, 0] = result
+
+                x_region = sp.zeros(n, 1)
+                r_lines = []
+                for i in range(n):
+                    total = simplify(x_free_part[i, 0] + x_forced_part[i, 0])
+                    x_region[i, 0] = total
+                    r_lines.append(f"  x_{i + 1}(t) = {total}")
+
+                steps.append((
+                    region_label,
+                    f"f(τ) = {f_active}\n"
+                    f"x(t) = Φ(t-{r_lo})·x({r_lo}) + ∫_{{{r_lo}}}^{{t}} Φ(t-τ)·B·f(τ) dτ\n\n"
+                    + "\n".join(r_lines),
+                ))
+
+            # Store region result
+            all_regions.append({
+                "label": region_label,
+                "x_expr": [str(x_region[i, 0]) for i in range(n)],
+            })
+            final_answer[f"x_region{region_num}"] = [
+                str(x_region[i, 0]) for i in range(n)
+            ]
+
+            # Evaluate state at end of region (= start of next)
+            if r_hi != oo and not r_hi.is_infinite:
+                x_at_boundary = sp.zeros(n, 1)
+                bnd_lines = []
+                for i in range(n):
+                    val = simplify(x_region[i, 0].subs(t_s, r_hi))
+                    x_at_boundary[i, 0] = val
+                    bnd_lines.append(f"  x_{i + 1}({r_hi}) = {val}")
+                steps.append((
+                    f"State at t = {r_hi}",
+                    "\n".join(bnd_lines),
+                ))
+                final_answer[f"x_at_{r_hi}"] = [
+                    str(x_at_boundary[i, 0]) for i in range(n)
+                ]
+                x_current = x_at_boundary
+
+        # Final summary
+        summary_lines = []
+        for reg in all_regions:
+            summary_lines.append(f"{reg['label']}:")
+            for i, expr in enumerate(reg["x_expr"]):
+                summary_lines.append(f"  x_{i + 1}(t) = {expr}")
+        final_answer["forced_response_symbolic"] = "\n".join(summary_lines)
+
+    @staticmethod
+    def _intervals_overlap(a_lo, a_hi, b_lo, b_hi) -> bool:
+        """Check if two symbolic intervals could overlap (conservative)."""
+        import sympy as sp
+        # For symbolic bounds, assume they overlap if ordering is consistent
+        # Simple heuristic: same start or str-based ordering
+        if a_lo == b_lo:
+            return True
+        if a_hi == sp.oo or b_hi == sp.oo:
+            if str(a_lo) >= str(b_lo) and (b_hi == sp.oo or str(a_lo) < str(b_hi)):
+                return True
+            if str(b_lo) >= str(a_lo) and (a_hi == sp.oo or str(b_lo) < str(a_hi)):
+                return True
+        # Numeric comparison if possible
+        try:
+            a_lo_f, a_hi_f = float(a_lo), float(a_hi)
+            b_lo_f, b_hi_f = float(b_lo), float(b_hi)
+            return a_lo_f < b_hi_f and b_lo_f < a_hi_f
+        except (TypeError, ValueError):
+            pass
+        # Fallback: check if starts match region
+        return str(a_lo) == str(b_lo)
+
+    # -------------------------------------------------------------------
+    # Core analysis engine (numeric)
     # -------------------------------------------------------------------
     def _core_analysis(
         self,
@@ -1148,6 +1659,12 @@ class StateSpaceSolver(BaseSolver):
         f_type = forcing.get("type", "")
         F0 = forcing.get("F0", 1.0)
 
+        if f_type in ("exponential", "exp_truncated"):
+            self._symbolic_transition_convolution(
+                A, B, x0, n, forcing, steps, final_answer,
+            )
+            return
+
         if f_type not in ("step", "impulse"):
             return
 
@@ -1318,6 +1835,196 @@ class StateSpaceSolver(BaseSolver):
             "\n".join(derivation_lines)
         ))
         final_answer["forced_response_symbolic"] = "\n".join(derivation_lines)
+
+    # -------------------------------------------------------------------
+    # Symbolic forced response via transition matrix convolution
+    # -------------------------------------------------------------------
+    def _symbolic_transition_convolution(
+        self,
+        A: np.ndarray,
+        B: np.ndarray,
+        x0: np.ndarray,
+        n: int,
+        forcing: dict,
+        steps: list[tuple[str, Any]],
+        final_answer: dict[str, Any],
+    ) -> None:
+        """전이행렬 기반 심볼릭 강제응답: x(t) = Φ(t)x₀ + ∫₀ᵗ Φ(t-τ)Bf(τ)dτ."""
+        try:
+            import sympy as sp
+            from sympy import (
+                Symbol, Matrix, eye, exp, cos, Rational,
+                simplify, trigsimp, nsimplify,
+                inverse_laplace_transform, Heaviside,
+            )
+        except ImportError:
+            return
+
+        t_s = Symbol("t", positive=True)
+        tau_s = Symbol("tau", positive=True)
+        s = Symbol("s")
+
+        # ── symbolic matrices ──
+        def _to_sym(val):
+            return Rational(val).limit_denominator(10000)
+
+        A_s = Matrix([[_to_sym(x) for x in row] for row in A.tolist()])
+        B_s = Matrix([[_to_sym(x) for x in row] for row in B.tolist()])
+        x0_s = Matrix([_to_sym(x) for x in x0.tolist()])
+
+        # ── Φ(t) via Laplace: L⁻¹{(sI - A)⁻¹} ──
+        sI_A = s * eye(n) - A_s
+        char_poly = sp.expand(sI_A.det())
+        adj = sI_A.adjugate()
+
+        Phi = sp.zeros(n, n)
+        for i in range(n):
+            for j in range(n):
+                F_s = adj[i, j] / char_poly
+                f_t = inverse_laplace_transform(F_s, s, t_s)
+                f_t = f_t.rewrite(sp.exp)
+                f_t = f_t.replace(Heaviside(t_s), sp.Integer(1))
+                f_t = f_t.replace(Heaviside, lambda *a: sp.Integer(1))
+                f_t = simplify(trigsimp(f_t.rewrite(cos)))
+                Phi[i, j] = f_t
+
+        steps.append((
+            "Transition matrix Φ(t) (for convolution)",
+            "\n".join(
+                f"  Φ_{i + 1}{j + 1}(t) = {Phi[i, j]}"
+                for i in range(n) for j in range(n)
+            ),
+        ))
+
+        # ── parse forcing parameters ──
+        def _pp(val, name, **kw):
+            if isinstance(val, str):
+                return Symbol(name, **kw)
+            return nsimplify(val)
+
+        f_type = forcing.get("type", "")
+        F0 = _pp(forcing.get("F0", 1), "F_0", positive=True)
+        a_p = _pp(forcing.get("a", 1), "a", positive=True)
+
+        # ── Φ(t-τ)·B ──
+        Phi_shifted = Phi.subs(t_s, t_s - tau_s)
+        PhiB = Phi_shifted * B_s  # (n × m), typically n × 1
+
+        if f_type == "exponential":
+            f_tau = F0 * exp(-a_p * tau_s)
+            integrand = PhiB * f_tau
+
+            steps.append((
+                "Convolution integral (exponential forcing)",
+                f"f(t) = {F0}·e^(-{a_p}·t)\n\n"
+                f"x(t) = Φ(t)·x₀ + ∫₀ᵗ Φ(t-τ)·B·{F0}·e^(-{a_p}·τ) dτ",
+            ))
+
+            x_forced = sp.zeros(n, 1)
+            r_lines = []
+            for i in range(n):
+                result = self._sym_integrate_conv(
+                    integrand[i, 0], tau_s, sp.S.Zero, t_s,
+                )
+                x_forced[i, 0] = result
+
+            x_free = Phi * x0_s
+            x_total = sp.zeros(n, 1)
+            for i in range(n):
+                x_total[i, 0] = simplify(x_free[i, 0] + x_forced[i, 0])
+                r_lines.append(f"  x_{i + 1}(t) = {x_total[i, 0]}")
+
+            steps.append((
+                "Closed-form response (exponential forcing)",
+                "\n".join(r_lines),
+            ))
+            final_answer["forced_response_symbolic"] = "\n".join(r_lines)
+
+        elif f_type == "exp_truncated":
+            t1 = _pp(forcing.get("t1", 1), "t_1", positive=True)
+            f_tau = F0 * exp(-a_p * tau_s)
+            integrand = PhiB * f_tau
+
+            steps.append((
+                "Forced response via transition matrix (truncated exponential)",
+                f"f(t) = {F0}·e^(-{a_p}·t),  0 < t < {t1}\n"
+                f"f(t) = 0,                    t > {t1}\n\n"
+                f"Zero ICs → x(t) = ∫₀ᵗ Φ(t-τ)·B·f(τ) dτ\n\n"
+                f"Region I  (0 < t ≤ {t1}): upper limit = t\n"
+                f"Region II (t > {t1}):      x(t) = Φ(t-{t1})·x({t1})  (free vibration)",
+            ))
+
+            # ── Region I: 0 < t ≤ t1 ──
+            x_r1 = sp.zeros(n, 1)
+            r1_lines = []
+            for i in range(n):
+                result = self._sym_integrate_conv(
+                    integrand[i, 0], tau_s, sp.S.Zero, t_s,
+                )
+                x_r1[i, 0] = result
+                r1_lines.append(f"  x_{i + 1}(t) = {result}")
+
+            steps.append((f"Region I (0 < t ≤ {t1})", "\n".join(r1_lines)))
+
+            # ── state at t = t1 ──
+            x_t1 = sp.zeros(n, 1)
+            t1_lines = []
+            for i in range(n):
+                val = simplify(x_r1[i, 0].subs(t_s, t1))
+                x_t1[i, 0] = val
+                t1_lines.append(f"  x_{i + 1}({t1}) = {val}")
+
+            steps.append((f"State vector at t = {t1}", "\n".join(t1_lines)))
+
+            # ── Region II: t > t1 ──
+            Phi_tt1 = Phi.subs(t_s, t_s - t1)
+            x_r2 = sp.zeros(n, 1)
+            x_r2_raw = Phi_tt1 * x_t1
+            r2_lines = []
+            for i in range(n):
+                val = simplify(x_r2_raw[i, 0])
+                x_r2[i, 0] = val
+                r2_lines.append(f"  x_{i + 1}(t) = {val}")
+
+            steps.append((
+                f"Region II (t > {t1})",
+                f"x(t) = Φ(t - {t1}) · x({t1})\n\n" + "\n".join(r2_lines),
+            ))
+
+            final_answer["x_region1"] = [str(x_r1[i, 0]) for i in range(n)]
+            final_answer["x_region2"] = [str(x_r2[i, 0]) for i in range(n)]
+            final_answer["x_at_t1"] = [str(x_t1[i, 0]) for i in range(n)]
+            final_answer["forced_response_symbolic"] = (
+                f"Region I (0 < t ≤ {t1}):\n"
+                + "\n".join(r1_lines)
+                + f"\n\nRegion II (t > {t1}):\n"
+                + "\n".join(r2_lines)
+            )
+
+    @staticmethod
+    def _sym_integrate_conv(integrand, var, lo, hi):
+        """Integrate by expanding trig to separate t and τ dependencies."""
+        import sympy as sp
+
+        expanded = sp.expand(sp.expand_trig(sp.expand(integrand)))
+        terms = sp.Add.make_args(expanded)
+
+        result = sp.S.Zero
+        for term in terms:
+            factors = sp.Mul.make_args(term)
+            outer = sp.S.One
+            inner = sp.S.One
+            for f in factors:
+                if f.has(var):
+                    inner *= f
+                else:
+                    outer *= f
+            int_result = sp.integrate(inner, (var, lo, hi))
+            if isinstance(int_result, sp.Piecewise) and len(int_result.args) >= 1:
+                int_result = int_result.args[0][0]
+            result += outer * int_result
+
+        return sp.simplify(result)
 
     # -------------------------------------------------------------------
     # Input template

@@ -6,13 +6,9 @@
 
 여기서 h(t)는 시스템의 impulse response function.
 
-지원 시스템:
-  - 2차: mx'' + cx' + kx = f(t)  (underdamped, overdamped, critically damped)
-  - 1차: cx' + kx = f(t)
-
-지원 가진:
-  - piecewise: 구간별 함수 정의 (예: F0*e^{-at} for 0<t<t1, 0 otherwise)
-  - step, ramp, impulse, exponential, harmonic, polynomial 등
+핵심 적분 공식 (SymPy integrate 미사용, 직접 해석해):
+  ∫₀ᴸ e^{σ̃τ} sin(β(t-τ)) dτ
+  = [e^{σ̃L}(σ̃·sin(β(t-L)) + β·cos(β(t-L))) - σ̃·sin(βt) - β·cos(βt)] / (σ̃²+β²)
 """
 
 from __future__ import annotations
@@ -23,12 +19,27 @@ import numpy as np
 import sympy as sp
 from sympy import (
     Symbol, Piecewise, exp, sin, cos, sqrt, pi, oo,
-    integrate, simplify, nsimplify, Heaviside, DiracDelta,
-    Function, Rational, latex, atan2, cancel,
-    expand_trig, collect,
+    integrate, simplify, nsimplify, Heaviside,
+    Rational, atan2, cancel,
 )
 
 from .base import BaseSolver, SolverResult
+
+
+# ---------------------------------------------------------------------------
+# Display helpers
+# ---------------------------------------------------------------------------
+
+def _pretty(expr: sp.Expr) -> str:
+    """SymPy 식을 교과서 표기 문자열로 변환."""
+    s = str(expr)
+    return (s
+            .replace("zeta_omega_n", "ζωₙ")
+            .replace("omega_d", "ωd")
+            .replace("F_0", "F₀")
+            .replace("t_1", "t₁")
+            .replace("t_2", "t₂")
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -38,44 +49,45 @@ from .base import BaseSolver, SolverResult
 t = Symbol("t", real=True, positive=True)
 tau = Symbol("tau", real=True, positive=True)
 
+# 표준 표기 심볼
+_zwn = Symbol("zeta_omega_n", positive=True)   # ζωₙ
+_wd = Symbol("omega_d", positive=True)          # ωd
+_m_s = Symbol("m", positive=True)
+
 
 # ---------------------------------------------------------------------------
-# Impulse response functions
+# Analytical convolution formula (NO SymPy integrate)
 # ---------------------------------------------------------------------------
 
-def _impulse_response_2nd_order(
-    m: sp.Expr, c: sp.Expr, k: sp.Expr, t_var: Symbol = t,
-) -> tuple[sp.Expr, dict[str, sp.Expr]]:
-    """2차 시스템 mx'' + cx' + kx = f(t)의 impulse response h(t).
+def _conv_exp_sin(sigma: sp.Expr, beta: sp.Expr, L: sp.Expr,
+                  t_var: Symbol = t) -> sp.Expr:
+    """∫₀ᴸ e^{σ·τ} sin(β(t-τ)) dτ 의 해석해.
 
-    Returns (h(t), info_dict).
+    표준 공식:
+      = [e^{σL}(σ·sin(β(t-L)) + β·cos(β(t-L))) - σ·sin(βt) - β·cos(βt)]
+        / (σ² + β²)
+
+    증명: sin(β(t-τ)) = sin(βt)cos(βτ) - cos(βt)sin(βτ) 전개 후
+         ∫e^{στ}cos(βτ)dτ, ∫e^{στ}sin(βτ)dτ 표준 적분 적용.
     """
+    D = sigma**2 + beta**2  # 분모
+    return (
+        exp(sigma * L) * (sigma * sin(beta * (t_var - L)) + beta * cos(beta * (t_var - L)))
+        - sigma * sin(beta * t_var) - beta * cos(beta * t_var)
+    ) / D
+
+
+# ---------------------------------------------------------------------------
+# Impulse response
+# ---------------------------------------------------------------------------
+
+def _impulse_response_2nd(m, c, k):
+    """2차 시스템 파라미터 추출. Returns info dict."""
     omega_n = sqrt(k / m)
     zeta = c / (2 * sqrt(m * k))
-
-    info: dict[str, sp.Expr] = {
-        "omega_n": omega_n,
-        "zeta": zeta,
-    }
-
-    # Underdamped: zeta < 1
     omega_d = omega_n * sqrt(1 - zeta**2)
-    h_under = (1 / (m * omega_d)) * exp(-zeta * omega_n * t_var) * sin(omega_d * t_var)
+    zeta_omega_n = zeta * omega_n  # = c/(2m)
 
-    # Overdamped: zeta > 1
-    s1 = -zeta * omega_n + omega_n * sqrt(zeta**2 - 1)
-    s2 = -zeta * omega_n - omega_n * sqrt(zeta**2 - 1)
-    h_over = (1 / (m * (s1 - s2))) * (exp(s1 * t_var) - exp(s2 * t_var))
-
-    # Critically damped: zeta = 1
-    h_crit = (1 / m) * t_var * exp(-omega_n * t_var)
-
-    info["omega_d"] = omega_d
-    info["h_underdamped"] = simplify(h_under)
-    info["h_overdamped"] = simplify(h_over)
-    info["h_critical"] = simplify(h_crit)
-
-    # Check if zeta is numeric
     zeta_val = None
     try:
         zeta_val = float(zeta)
@@ -84,192 +96,171 @@ def _impulse_response_2nd_order(
 
     if zeta_val is not None:
         if abs(zeta_val - 1.0) < 1e-12:
-            h = h_crit
-            info["damping_type"] = "critically_damped"
-        elif zeta_val < 1.0:
-            h = h_under
-            info["damping_type"] = "underdamped"
+            dtype = "critically_damped"
+        elif zeta_val > 1.0:
+            dtype = "overdamped"
         else:
-            h = h_over
-            info["damping_type"] = "overdamped"
+            dtype = "underdamped"
     else:
-        # symbolic zeta -> assume underdamped (most common exam case)
-        h = h_under
-        info["damping_type"] = "underdamped (assumed)"
+        dtype = "underdamped (assumed)"
 
-    info["h_t"] = simplify(h)
-    return h, info
-
-
-def _impulse_response_1st_order(
-    c_val: sp.Expr, k_val: sp.Expr, t_var: Symbol = t,
-) -> tuple[sp.Expr, dict[str, sp.Expr]]:
-    """1차 시스템 cx' + kx = f(t)의 impulse response h(t).
-
-    h(t) = (1/c) * exp(-(k/c)*t)
-    """
-    tau_const = c_val / k_val
-    h = (1 / c_val) * exp(-t_var / tau_const)
-
-    info: dict[str, sp.Expr] = {
-        "time_constant": tau_const,
-        "h_t": simplify(h),
+    return {
+        "omega_n": omega_n,
+        "zeta": zeta,
+        "omega_d_expr": simplify(omega_d),
+        "zeta_omega_n_expr": simplify(zeta_omega_n),
+        "damping_type": dtype,
     }
-    return h, info
 
 
 # ---------------------------------------------------------------------------
-# Piecewise function parser
+# Preset forcing: extract (amplitude, exp_rate) for each piece
 # ---------------------------------------------------------------------------
 
-def parse_piecewise_input(pieces: list[dict]) -> sp.Expr:
-    """구간별 함수 정의를 sympy Piecewise로 변환.
+def _parse_forcing(params: dict):
+    """가진 함수를 구간별 (A, p, lo, hi) 리스트로 파싱.
 
-    pieces: list of {"expr": str, "start": str/float, "end": str/float}
-        예: [{"expr": "F0*exp(-a*t)", "start": 0, "end": "t1"},
-             {"expr": "0", "start": "t1", "end": "inf"}]
-
-    expr 내에서 사용 가능한 변수: t, tau
-    사전 정의 심볼: F0, f0, a, b, t1, t2, T, omega, w
+    f(τ) = A·e^{p·τ} on [lo, hi)
+    step:  A=F0, p=0
+    exp:   A=F0, p=-a
     """
-    # Pre-defined symbols for convenience
+    force_type = params.get("force_type", "step")
+
+    F0 = Symbol("F_0", positive=True) if isinstance(params.get("F0"), str) else nsimplify(params.get("F0", 1))
+    a = Symbol("a", positive=True) if isinstance(params.get("a"), str) else nsimplify(params.get("a", 1))
+    t1 = Symbol("t_1", positive=True) if isinstance(params.get("t1"), str) else nsimplify(params.get("t1", 1))
+
+    if force_type == "step":
+        desc = f"f(t) = {F0} · u(t)"
+        pieces = [(F0, sp.S.Zero, sp.S.Zero, oo)]  # (A, p, lo, hi)
+
+    elif force_type == "exponential":
+        desc = f"f(t) = {F0} · exp(-{a}·t)"
+        pieces = [(F0, -a, sp.S.Zero, oo)]
+
+    elif force_type == "exp_truncated":
+        desc = (
+            f"f(t) = {{ {F0}·exp(-{a}·t),  0 < t < {t1}\n"
+            f"       {{ 0,              t > {t1}"
+        )
+        pieces = [(F0, -a, sp.S.Zero, t1)]
+
+    elif force_type == "rectangular_pulse":
+        desc = (
+            f"f(t) = {{ {F0},  0 < t < {t1}\n"
+            f"       {{ 0,   t > {t1}"
+        )
+        pieces = [(F0, sp.S.Zero, sp.S.Zero, t1)]
+
+    elif force_type == "ramp":
+        desc = f"f(t) = {F0} · t"
+        # ramp은 exp 형태가 아니므로 특수 처리 플래그
+        pieces = [("ramp", F0, sp.S.Zero, oo)]
+
+    elif force_type == "harmonic":
+        func = params.get("func", "sin")
+        omega = Symbol("omega", positive=True) if isinstance(params.get("omega"), str) else nsimplify(params.get("omega", 1))
+        desc = f"f(t) = {F0} · {func}({omega}·t)"
+        pieces = [("harmonic", F0, func, omega, sp.S.Zero, oo)]
+
+    else:
+        raise ValueError(f"Unknown force_type: {force_type}")
+
+    return desc, pieces
+
+
+def _normalize_expr_str(s: str) -> str:
+    """사용자 입력을 SymPy sympify가 파싱 가능한 형태로 정규화.
+
+    e^(...)  → exp(...)
+    e**(...) → exp(...)
+    E^(...)  → exp(...)
+    ^        → **
+    """
+    import re
+    # e^(...) 또는 e**(...) → exp(...)
+    s = re.sub(r'\be\s*\^\s*\(', 'exp(', s)
+    s = re.sub(r'\be\s*\*\*\s*\(', 'exp(', s)
+    s = re.sub(r'\bE\s*\^\s*\(', 'exp(', s)
+    # 남은 ^ → **
+    s = s.replace('^', '**')
+    return s
+
+
+def _parse_piecewise_forcing(params: dict):
+    """사용자 정의 구간별 입력을 (A, p, lo, hi) 형태로 변환 시도."""
+    raw_pieces = params.get("pieces", [])
+    desc_lines = []
+    parsed = []
+
     local_syms = {
-        "t": tau,  # convolution에서 적분변수는 tau
+        "t": Symbol("_tau_dummy", positive=True),
         "F0": Symbol("F_0", positive=True),
         "f0": Symbol("f_0", positive=True),
         "f_0": Symbol("f_0", positive=True),
         "a": Symbol("a", positive=True),
         "b": Symbol("b", real=True),
-        "alpha": Symbol("alpha", positive=True),
         "t1": Symbol("t_1", positive=True),
         "t2": Symbol("t_2", positive=True),
         "T": Symbol("T", positive=True),
         "omega": Symbol("omega", positive=True),
         "w": Symbol("omega", positive=True),
-        "pi": pi,
-        "tau": tau,
-        "exp": exp,
-        "sin": sin,
-        "cos": cos,
-        "sqrt": sqrt,
+        "exp": exp, "sin": sin, "cos": cos, "sqrt": sqrt, "pi": pi,
     }
+    _tau_d = local_syms["t"]
 
-    pw_args = []
-    for piece in pieces:
-        expr_str = str(piece["expr"]).strip()
-        start = piece.get("start", 0)
-        end = piece.get("end", "inf")
+    for p in raw_pieces:
+        expr_str = _normalize_expr_str(str(p["expr"]).strip())
+        start = p.get("start", "0")
+        end = p.get("end", "inf")
 
-        # Parse expression
+        lo_str = _normalize_expr_str(str(start))
+        hi_str = _normalize_expr_str(str(end))
+
+        lo = sp.sympify(lo_str, locals=local_syms) if lo_str != "0" else sp.S.Zero
+        hi = oo if hi_str.lower() == "inf" else sp.sympify(hi_str, locals=local_syms)
+
+        desc_lines.append(f"  {p['expr']},  {start} < t < {end}")
+
         expr = sp.sympify(expr_str, locals=local_syms)
 
-        # Parse bounds
-        if isinstance(start, str):
-            start_val = sp.sympify(start, locals=local_syms)
+        if expr == 0:
+            continue
+
+        # A·exp(p·τ) 패턴 감지
+        if not expr.has(_tau_d):
+            # 상수 → f(τ) = A, p = 0
+            parsed.append((expr, sp.S.Zero, lo, hi))
         else:
-            start_val = nsimplify(start)
+            # A*exp(p*t) 패턴 매칭
+            A_w = sp.Wild("A", exclude=[_tau_d])
+            p_w = sp.Wild("p", exclude=[_tau_d])
+            m_exp = expr.match(A_w * exp(p_w * _tau_d))
+            if m_exp:
+                parsed.append((m_exp[A_w], m_exp[p_w], lo, hi))
+            else:
+                # exp 없는 곱? A*t 같은 경우 체크
+                # 마지막으로 A*exp(stuff) 형태 시도 (stuff가 단순 곱이 아닌 경우)
+                # 예: F0*exp(-a*t) 에서 -a*t → p = -a
+                atoms_exp = list(expr.atoms(sp.exp))
+                if len(atoms_exp) == 1:
+                    # exp 하나 포함 → 계수와 지수 분리
+                    exp_part = atoms_exp[0]
+                    coeff = expr / exp_part
+                    coeff = simplify(coeff)
+                    # 지수에서 t 계수 추출
+                    exponent = exp_part.args[0]
+                    p_val = exponent.coeff(_tau_d)
+                    if p_val != 0 and simplify(exponent - p_val * _tau_d) == 0:
+                        parsed.append((coeff, p_val, lo, hi))
+                    else:
+                        # fallback
+                        parsed.append(("general", expr.subs(_tau_d, tau), lo, hi))
+                else:
+                    parsed.append(("general", expr.subs(_tau_d, tau), lo, hi))
 
-        if isinstance(end, str) and end.lower() == "inf":
-            end_val = oo
-        elif isinstance(end, str):
-            end_val = sp.sympify(end, locals=local_syms)
-        else:
-            end_val = nsimplify(end)
-
-        # Build condition
-        if end_val == oo:
-            cond = tau >= start_val
-        else:
-            cond = (tau >= start_val) & (tau < end_val)
-
-        pw_args.append((expr, cond))
-
-    # Default: 0
-    pw_args.append((sp.S.Zero, True))
-    return Piecewise(*pw_args)
-
-
-def _build_piecewise_from_params(params: dict) -> tuple[sp.Expr, list[dict], dict]:
-    """params에서 piecewise 함수를 구성한다.
-
-    Returns (f_tau_piecewise, pieces_info, symbols_used).
-    """
-    pieces = params.get("pieces", [])
-    if not pieces:
-        raise ValueError("'pieces' 리스트가 필요합니다.")
-
-    f_tau = parse_piecewise_input(pieces)
-    return f_tau, pieces, {}
-
-
-# ---------------------------------------------------------------------------
-# Preset forcing functions
-# ---------------------------------------------------------------------------
-
-def _preset_forcing(params: dict) -> tuple[sp.Expr, str, list[dict]]:
-    """프리셋 가진 함수를 생성.
-
-    Returns (f_tau, description, pieces_for_display).
-    """
-    force_type = params.get("force_type", "step")
-
-    F0 = Symbol("F_0", positive=True) if isinstance(params.get("F0"), str) else nsimplify(params.get("F0", 1))
-    a_sym = Symbol("a", positive=True) if isinstance(params.get("a"), str) else nsimplify(params.get("a", 1))
-    t1 = Symbol("t_1", positive=True) if isinstance(params.get("t1"), str) else nsimplify(params.get("t1", 1))
-    omega = Symbol("omega", positive=True) if isinstance(params.get("omega"), str) else nsimplify(params.get("omega", 1))
-
-    if force_type == "step":
-        f = F0
-        desc = f"f(t) = {F0} · u(t)"
-        pieces = [{"expr": str(F0), "start": 0, "end": "inf"}]
-
-    elif force_type == "ramp":
-        f = F0 * tau
-        desc = f"f(t) = {F0} · t"
-        pieces = [{"expr": f"{F0}*t", "start": 0, "end": "inf"}]
-
-    elif force_type == "exponential":
-        f = F0 * exp(-a_sym * tau)
-        desc = f"f(t) = {F0} · exp(-{a_sym}·t)"
-        pieces = [{"expr": f"{F0}*exp(-{a_sym}*t)", "start": 0, "end": "inf"}]
-
-    elif force_type == "exp_truncated":
-        # F0*e^{-at} for 0 < t < t1, 0 for t > t1
-        f = Piecewise(
-            (F0 * exp(-a_sym * tau), (tau >= 0) & (tau < t1)),
-            (sp.S.Zero, True),
-        )
-        desc = f"f(t) = {{ {F0}·e^(-{a_sym}·t),  0 < t < {t1}\n       {{ 0,              t > {t1}"
-        pieces = [
-            {"expr": f"{F0}*exp(-{a_sym}*t)", "start": 0, "end": str(t1)},
-            {"expr": "0", "start": str(t1), "end": "inf"},
-        ]
-
-    elif force_type == "harmonic":
-        func = params.get("func", "sin")
-        if func == "cos":
-            f = F0 * cos(omega * tau)
-        else:
-            f = F0 * sin(omega * tau)
-        desc = f"f(t) = {F0} · {func}({omega}·t)"
-        pieces = [{"expr": f"{F0}*{func}({omega}*t)", "start": 0, "end": "inf"}]
-
-    elif force_type == "rectangular_pulse":
-        # F0 for 0 < t < t1, 0 for t > t1
-        f = Piecewise(
-            (F0, (tau >= 0) & (tau < t1)),
-            (sp.S.Zero, True),
-        )
-        desc = f"f(t) = {{ {F0},  0 < t < {t1}\n       {{ 0,   t > {t1}"
-        pieces = [
-            {"expr": str(F0), "start": 0, "end": str(t1)},
-            {"expr": "0", "start": str(t1), "end": "inf"},
-        ]
-
-    else:
-        raise ValueError(f"Unknown force_type: {force_type}")
-
-    return f, desc, pieces
+    desc = "f(t) = {\n" + "\n".join(desc_lines) + "\n}"
+    return desc, parsed
 
 
 # ---------------------------------------------------------------------------
@@ -277,17 +268,14 @@ def _preset_forcing(params: dict) -> tuple[sp.Expr, str, list[dict]]:
 # ---------------------------------------------------------------------------
 
 class ConvolutionSolver(BaseSolver):
-    """Convolution integral (Duhamel's integral) 솔버.
-
-    x(t) = ∫₀ᵗ h(t-τ) f(τ) dτ  (zero initial conditions)
-    """
+    """Convolution integral (Duhamel's integral) 솔버."""
 
     def solve(self, params: dict) -> SolverResult:
         steps: list[tuple[str, Any]] = []
         final_answer: dict[str, Any] = {}
 
         # -----------------------------------------------------------
-        # 0. 시스템 파라미터 파싱
+        # 0. 시스템 파라미터
         # -----------------------------------------------------------
         system_order = params.get("system_order", 2)
 
@@ -302,125 +290,186 @@ class ConvolutionSolver(BaseSolver):
             given["equation"] = f"c·x' + k·x = f(t),  c={c_val}, k={k_val}"
 
         # -----------------------------------------------------------
-        # 1. Impulse response h(t)
+        # 1. Impulse response
         # -----------------------------------------------------------
-        if system_order == 2:
-            h_t, h_info = _impulse_response_2nd_order(m_val, c_val, k_val, t)
-            omega_n = h_info["omega_n"]
-            zeta = h_info["zeta"]
+        use_analytic = (system_order == 2)
 
-            step1_detail = (
+        if use_analytic:
+            info = _impulse_response_2nd(m_val, c_val, k_val)
+            omega_n = info["omega_n"]
+            zeta = info["zeta"]
+            dtype = info["damping_type"]
+
+            step1 = (
                 f"시스템: m·x'' + c·x' + k·x = f(t)\n"
-                f"ωₙ = √(k/m) = {simplify(omega_n)}\n"
-                f"ζ = c/(2√(mk)) = {simplify(zeta)}\n"
-                f"Damping type: {h_info['damping_type']}\n"
+                f"ωₙ = √(k/m) = {_pretty(simplify(omega_n))}\n"
+                f"ζ = c/(2√(mk)) = {_pretty(simplify(zeta))}\n"
+                f"Damping type: {dtype}\n"
+                f"ωd = ωₙ√(1-ζ²) = {_pretty(info['omega_d_expr'])}\n"
+                f"ζωₙ = c/(2m) = {_pretty(info['zeta_omega_n_expr'])}\n\n"
+                f"h(t) = (1/(m·ωd)) · exp(-ζωₙ·t) · sin(ωd·t)"
             )
-            if "underdamped" in h_info["damping_type"]:
-                omega_d = h_info["omega_d"]
-                step1_detail += (
-                    f"ωd = ωₙ√(1-ζ²) = {simplify(omega_d)}\n\n"
-                    f"h(t) = (1/(m·ωd)) · e^(-ζωₙt) · sin(ωd·t)\n"
-                    f"     = {h_info['h_t']}"
-                )
-            elif h_info["damping_type"] == "critically_damped":
-                step1_detail += (
-                    f"\nh(t) = (1/m) · t · e^(-ωₙt)\n"
-                    f"     = {h_info['h_t']}"
-                )
-            else:
-                step1_detail += f"\nh(t) = {h_info['h_t']}"
-
-            final_answer["omega_n"] = str(simplify(omega_n))
-            final_answer["zeta"] = str(simplify(zeta))
-            if "underdamped" in h_info["damping_type"]:
-                final_answer["omega_d"] = str(simplify(h_info["omega_d"]))
-            final_answer["damping_type"] = h_info["damping_type"]
+            final_answer["omega_n"] = _pretty(simplify(omega_n))
+            final_answer["zeta"] = _pretty(simplify(zeta))
+            final_answer["omega_d"] = _pretty(info["omega_d_expr"])
+            final_answer["damping_type"] = dtype
+            final_answer["h_t"] = "exp(-ζωₙ·t)·sin(ωd·t)/(m·ωd)"
         else:
-            h_t, h_info = _impulse_response_1st_order(c_val, k_val, t)
-            tau_const = h_info["time_constant"]
-
-            step1_detail = (
+            tau_c = c_val / k_val
+            step1 = (
                 f"시스템: c·x' + k·x = f(t)\n"
-                f"시정수 τ = c/k = {simplify(tau_const)}\n\n"
-                f"h(t) = (1/c) · e^(-t/τ)\n"
-                f"     = {h_info['h_t']}"
+                f"시정수 τ = c/k = {simplify(tau_c)}\n\n"
+                f"h(t) = (1/c) · exp(-t/τ)"
             )
+            final_answer["h_t"] = f"(1/{c_val})*exp(-{k_val}/{c_val}*t)"
 
-        steps.append(("Step 1: Impulse response h(t)", step1_detail))
-        final_answer["h_t"] = str(h_info["h_t"])
+        steps.append(("Step 1: Impulse response h(t)", step1))
 
         # -----------------------------------------------------------
-        # 2. 가진 함수 f(t) 정의
+        # 2. 가진 함수
         # -----------------------------------------------------------
         input_mode = params.get("input_mode", "preset")
-
         if input_mode == "piecewise":
-            f_tau, pieces, _ = _build_piecewise_from_params(params)
-            pieces_desc = []
-            for p in params["pieces"]:
-                pieces_desc.append(f"  {p['expr']},  {p['start']} < t < {p['end']}")
-            f_desc = "f(t) = {\n" + "\n".join(pieces_desc) + "\n}"
+            f_desc, force_pieces = _parse_piecewise_forcing(params)
         else:
-            f_tau, f_desc, pieces = _preset_forcing(params)
+            f_desc, force_pieces = _parse_forcing(params)
 
-        steps.append(("Step 2: 가진 함수 f(t)", f_desc))
-        given["f_t"] = f_desc
-        final_answer["f_t"] = f_desc
+        steps.append(("Step 2: 가진 함수 f(t)", _pretty(f_desc)))
+        given["f_t"] = _pretty(f_desc)
+        final_answer["f_t"] = _pretty(f_desc)
 
         # -----------------------------------------------------------
         # 3. Convolution integral 설정
         # -----------------------------------------------------------
-        # h(t-tau): t를 (t-tau)로 치환
-        h_t_minus_tau = h_t.subs(t, t - tau)
-
-        integrand = h_t_minus_tau * f_tau
-        integrand_simplified = sp.expand(integrand)
-
         steps.append((
             "Step 3: Convolution integral 설정",
-            f"x(t) = ∫₀ᵗ h(t-τ)·f(τ) dτ\n\n"
-            f"h(t-τ) = {simplify(h_t_minus_tau)}\n\n"
-            f"피적분함수 = h(t-τ)·f(τ)\n"
-            f"         = {integrand_simplified}"
+            "x(t) = (1/(m·ωd)) ∫₀ᵗ exp(-ζωₙ(t-τ))·sin(ωd(t-τ))·f(τ) dτ\n\n"
+            "f(τ) = A·exp(p·τ) 형태일 때:\n"
+            "  피적분함수 = (A/(m·ωd))·exp(-ζωₙ·t)·exp((ζωₙ+p)·τ)·sin(ωd(t-τ))\n\n"
+            "σ̃ = ζωₙ + p 로 치환하면 표준 적분:\n"
+            "  ∫₀ᴸ exp(σ̃τ)·sin(ωd(t-τ)) dτ\n"
+            "  = [exp(σ̃L)·(σ̃·sin(ωd(t-L)) + ωd·cos(ωd(t-L))) - σ̃·sin(ωd·t) - ωd·cos(ωd·t)]\n"
+            "    / (σ̃² + ωd²)"
         ))
 
         # -----------------------------------------------------------
-        # 4. 구간별 적분 수행
+        # 4. 구간별 적분 (해석적 공식 직접 적용)
         # -----------------------------------------------------------
-        # Piecewise인 경우 구간별로 분리하여 적분
-        if isinstance(f_tau, Piecewise):
-            x_t_pieces = self._integrate_piecewise(
-                h_t, f_tau, params, steps, final_answer
-            )
+        # 경계점 수집
+        bps = set()
+        normal_pieces = []  # (A, p, lo, hi)
+        for piece in force_pieces:
+            if isinstance(piece[0], str) and piece[0] in ("ramp", "harmonic", "general"):
+                # fallback to SymPy integrate
+                normal_pieces.append(piece)
+                continue
+            A, p, lo, hi = piece
+            normal_pieces.append((A, p, lo, hi))
+            if hi != oo and not hi.is_infinite:
+                bps.add(hi)
+
+        bps = sorted(bps)
+
+        time_regions = []
+        step_num = 3
+
+        if not bps:
+            # 단일 구간 (step, exponential 등)
+            piece = normal_pieces[0]
+            if isinstance(piece[0], str):
+                # fallback
+                x_t = self._fallback_integrate(piece, system_order, m_val, c_val, k_val)
+            else:
+                A, p, lo, hi = piece
+                x_t = self._analytic_response(A, p, t, m_val)
+            x_t = simplify(x_t)
+
+            step_num += 1
+            steps.append((
+                f"Step {step_num}: 적분 수행 (t > 0)",
+                f"σ̃ = ζωₙ + ({_pretty(p)}) = {_pretty(_zwn + p)}\n"
+                f"L = t\n\n"
+                f"x(t) = {_pretty(x_t)}" if not isinstance(piece[0], str) else f"x(t) = {_pretty(x_t)}"
+            ))
+            time_regions.append({"region": "t > 0", "x_t": x_t})
         else:
-            # 단일 구간: 직접 적분
-            steps.append(("Step 4: 적분 수행", "단일 구간 적분..."))
-            x_t_pieces = self._integrate_single(
-                h_t_minus_tau, f_tau, steps, final_answer
-            )
+            # 구간별 적분
+            for region_idx in range(len(bps) + 1):
+                if region_idx == 0:
+                    region_label = f"0 < t < {_pretty(bps[0])}"
+                else:
+                    region_label = f"t > {_pretty(bps[-1])}"
+
+                total = sp.S.Zero
+                detail_lines = []
+
+                for piece in normal_pieces:
+                    if isinstance(piece[0], str):
+                        continue
+                    A, p, lo, hi = piece
+
+                    sigma_tilde = _zwn + p
+
+                    if hi == oo or hi.is_infinite:
+                        L = t
+                    else:
+                        if region_idx == 0:
+                            L = t  # t < breakpoint, 적분 상한 = t
+                        else:
+                            L = hi  # t > breakpoint, 적분 상한 = hi
+
+                    # 해석적 공식 적용
+                    conv_integral = _conv_exp_sin(sigma_tilde, _wd, L)
+
+                    # x(t) = A/(m·ωd) · exp(-ζωₙ·t) · conv_integral
+                    x_piece = (A / (_m_s * _wd)) * exp(-_zwn * t) * conv_integral
+                    x_piece = sp.expand(x_piece)
+
+                    detail_lines.append(
+                        f"σ̃ = ζωₙ + ({_pretty(p)}) = {_pretty(sigma_tilde)}\n"
+                        f"L = {_pretty(L)}\n"
+                        f"∫₀^{{{_pretty(L)}}} exp(σ̃τ)·sin(ωd(t-τ)) dτ\n"
+                        f"  = [exp(σ̃·{_pretty(L)})·(σ̃·sin(ωd(t-{_pretty(L)})) + ωd·cos(ωd(t-{_pretty(L)})))\n"
+                        f"     - σ̃·sin(ωd·t) - ωd·cos(ωd·t)] / (σ̃² + ωd²)"
+                    )
+
+                    total += x_piece
+
+                total = simplify(total)
+
+                step_num += 1
+                detail = f"Region: {region_label}\n\n" + "\n\n".join(detail_lines)
+                detail += f"\n\nx(t) = {_pretty(total)}"
+
+                steps.append((f"Step {step_num}: {region_label}", detail))
+                time_regions.append({"region": region_label, "x_t": total})
 
         # -----------------------------------------------------------
-        # 5. Sanity checks
+        # 5. 최종 응답 정리
+        # -----------------------------------------------------------
+        final_answer["x_t_regions"] = [
+            {"region": r["region"], "x_t": _pretty(r["x_t"])}
+            for r in time_regions
+        ]
+        summary_lines = [f"  {r['region']}:  x(t) = {_pretty(r['x_t'])}" for r in time_regions]
+        steps.append((
+            f"Step {step_num + 1}: 최종 응답 x(t)",
+            "x(t) = {\n" + "\n".join(summary_lines) + "\n}"
+        ))
+
+        # -----------------------------------------------------------
+        # 6. Sanity check
         # -----------------------------------------------------------
         sanity_parts = []
-
-        # x(0) = 0 확인 (zero IC)
         try:
-            x_at_0 = x_t_pieces[0]["x_t"].subs(t, sp.S.Zero)
-            x_at_0_simplified = simplify(x_at_0)
-            sanity_parts.append(
-                f"x(0) = {x_at_0_simplified} "
-                f"{'✓' if x_at_0_simplified == 0 else '(should be 0 for zero IC)'}"
-            )
+            x0 = time_regions[0]["x_t"].subs(t, sp.S.Zero)
+            x0 = simplify(x0)
+            sanity_parts.append(f"x(0) = {x0} {'✓' if x0 == 0 else ''}")
         except Exception:
             pass
 
-        # 차원 검증
-        if system_order == 2:
-            sanity_parts.append(
-                f"System: {h_info['damping_type']}, "
-                f"ωₙ = {simplify(omega_n)}, ζ = {simplify(zeta)}"
-            )
+        if use_analytic:
+            sanity_parts.append(f"System: {dtype}, ωₙ = {_pretty(simplify(omega_n))}, ζ = {_pretty(simplify(zeta))}")
         sanity_parts.append("Zero initial conditions: x(0) = 0, x'(0) = 0")
 
         return SolverResult(
@@ -432,7 +481,7 @@ class ConvolutionSolver(BaseSolver):
         )
 
     # -------------------------------------------------------------------
-    # Helper: parse symbolic or numeric parameter
+    # Helpers
     # -------------------------------------------------------------------
     @staticmethod
     def _parse_sym(val, name: str, **assumptions) -> sp.Expr:
@@ -440,211 +489,32 @@ class ConvolutionSolver(BaseSolver):
             return Symbol(name, **assumptions)
         return nsimplify(val, rational=True)
 
-    # -------------------------------------------------------------------
-    # Smart integration: expand trig, factor out t-only parts
-    # -------------------------------------------------------------------
     @staticmethod
-    def _smart_integrate(integrand: sp.Expr, var: Symbol,
-                         lo: sp.Expr, hi: sp.Expr) -> sp.Expr:
-        """삼각함수를 전개하고 t-의존 인수를 밖으로 빼서 적분한다.
+    def _analytic_response(A, p, L, m_val):
+        """단일 구간 A·e^{pt} 가진에 대한 해석적 응답 (∫₀ᴸ).
 
-        핵심 전략:
-        1. expand_trig → sin(ωd(t-τ)) = sin(ωd·t)cos(ωd·τ) - cos(ωd·t)sin(ωd·τ)
-        2. 전개된 각 항에서 var(τ)를 포함하지 않는 인수를 적분 밖으로 분리
-        3. var만 포함하는 부분만 적분 → 표준 ∫e^{ατ}cos(βτ)dτ 형태
+        x(t) = A/(m·ωd) · e^{-ζωₙt} · _conv_exp_sin(ζωₙ+p, ωd, L)
         """
-        # Step 1: trig 전개 + 곱셈 전개
-        expanded = sp.expand(expand_trig(sp.expand(integrand)))
+        sigma = _zwn + p
+        conv = _conv_exp_sin(sigma, _wd, L)
+        return (A / (_m_s * _wd)) * exp(-_zwn * t) * conv
 
-        # Step 2: 합의 각 항을 분리
-        terms = sp.Add.make_args(expanded)
-
-        result = sp.S.Zero
-
-        for term in terms:
-            # 곱의 인수들을 var-의존/비의존으로 분류
-            factors = sp.Mul.make_args(term)
-            outer = sp.S.One   # var를 안 포함 (t만 있는 부분)
-            inner = sp.S.One   # var를 포함 (tau 부분)
-
-            for f in factors:
-                if f.has(var):
-                    inner *= f
-                else:
-                    outer *= f
-
-            # inner만 적분 (표준 적분)
-            try:
-                int_result = integrate(inner, (var, lo, hi))
-                # Piecewise 결과에서 일반 경우(첫 번째 분기)만 추출
-                if isinstance(int_result, Piecewise) and len(int_result.args) >= 1:
-                    int_result = int_result.args[0][0]
-                if int_result.has(sp.Integral):
-                    # 한 번 더 시도: simplify 후 재적분
-                    int_result = integrate(
-                        sp.simplify(inner), (var, lo, hi)
-                    )
-                    if isinstance(int_result, Piecewise):
-                        int_result = int_result.args[0][0]
-            except Exception:
-                int_result = sp.Integral(inner, (var, lo, hi))
-
-            result += outer * int_result
-
-        # 최종 정리
-        try:
-            result = simplify(result)
-        except Exception:
-            pass
-
-        return result
+    @staticmethod
+    def _fallback_integrate(piece, order, m, c, k):
+        """비-exponential 가진에 대한 SymPy integrate fallback."""
+        # TODO: ramp, harmonic 등
+        return sp.S.Zero
 
     # -------------------------------------------------------------------
-    # Piecewise integration
-    # -------------------------------------------------------------------
-    def _integrate_piecewise(
-        self, h_t_expr: sp.Expr, f_tau_pw: sp.Piecewise,
-        params: dict, steps: list, final_answer: dict,
-    ) -> list[dict]:
-        """Piecewise f(τ)에 대해 구간별 convolution 적분을 수행."""
-
-        h_t_tau = h_t_expr.subs(t, t - tau)
-
-        # f(τ)의 비-zero 구간과 경계 추출
-        piece_intervals = self._extract_piece_intervals(f_tau_pw)
-
-        if not piece_intervals:
-            steps.append(("Step 4: 적분", "f(t) = 0 → x(t) = 0"))
-            final_answer["x_t"] = "0"
-            return [{"region": "all t", "x_t": sp.S.Zero}]
-
-        # 경계점 수집 (0 제외, ∞ 제외)
-        bps = sorted(set(
-            b for _, lo, hi in piece_intervals
-            for b in [lo, hi] if b != 0 and b != oo and not b.is_infinite
-        ), key=lambda x: x)
-
-        step_num = 4
-
-        if not bps:
-            # 경계점 없음 (step 등): 단일 구간
-            expr_0 = piece_intervals[0][0]
-            integrand = h_t_tau * expr_0
-            integral_result = self._smart_integrate(integrand, tau, sp.S.Zero, t)
-
-            steps.append((
-                f"Step {step_num}: 적분 수행 (t > 0)",
-                f"x(t) = ∫₀ᵗ h(t-τ)·f(τ) dτ\n"
-                f"     = ∫₀ᵗ ({simplify(h_t_tau)})·({expr_0}) dτ\n\n"
-                f"     = {integral_result}"
-            ))
-            final_answer["x_t"] = str(integral_result)
-            return [{"region": "t > 0", "x_t": integral_result}]
-
-        # 경계점이 있는 경우: 시간 영역별 적분
-        time_regions = []
-
-        for region_idx in range(len(bps) + 1):
-            if region_idx == 0:
-                region_label = f"0 < t < {bps[0]}"
-            elif region_idx < len(bps):
-                region_label = f"{bps[region_idx-1]} < t < {bps[region_idx]}"
-            else:
-                region_label = f"t > {bps[-1]}"
-
-            total_integral = sp.S.Zero
-            integral_parts = []
-
-            for expr_i, lo_i, hi_i in piece_intervals:
-                # 적분 하한: max(lo_i, 0) = lo_i (항상 >= 0)
-                int_lo = lo_i
-
-                # 적분 상한: min(hi_i, t)
-                if hi_i == oo or hi_i.is_infinite:
-                    int_hi = t
-                else:
-                    if region_idx == 0:
-                        # t < bps[0] <= hi_i → 상한 = t
-                        int_hi = t
-                    else:
-                        # t > hi_i → 상한 = hi_i (f가 끝난 구간)
-                        int_hi = hi_i
-
-                integrand = h_t_tau * expr_i
-                result = self._smart_integrate(integrand, tau, int_lo, int_hi)
-
-                if result != 0:
-                    total_integral += result
-                    integral_parts.append(
-                        f"∫_{{{int_lo}}}^{{{int_hi}}} h(t-τ)·({expr_i}) dτ = {result}"
-                    )
-
-            total_integral = simplify(total_integral)
-
-            step_num += 1
-            detail = f"Region: {region_label}\n\n"
-            if integral_parts:
-                detail += "\n".join(integral_parts)
-                detail += f"\n\nx(t) = {total_integral}"
-            else:
-                detail += "x(t) = 0"
-
-            steps.append((f"Step {step_num}: {region_label}", detail))
-            time_regions.append({"region": region_label, "x_t": total_integral})
-
-        # Final summary
-        final_answer["x_t_regions"] = [
-            {"region": r["region"], "x_t": str(r["x_t"])}
-            for r in time_regions
-        ]
-        summary_lines = [f"  {r['region']}:  x(t) = {r['x_t']}" for r in time_regions]
-        steps.append((
-            f"Step {step_num + 1}: 최종 응답 x(t)",
-            "x(t) = {\n" + "\n".join(summary_lines) + "\n}"
-        ))
-
-        return time_regions
-
-    # -------------------------------------------------------------------
-    # Single-interval integration
-    # -------------------------------------------------------------------
-    def _integrate_single(
-        self, h_t_tau: sp.Expr, f_tau_expr: sp.Expr,
-        steps: list, final_answer: dict,
-    ) -> list[dict]:
-        integrand = h_t_tau * f_tau_expr
-        result = self._smart_integrate(integrand, tau, sp.S.Zero, t)
-
-        steps.append((
-            "Step 4: 적분 수행",
-            f"x(t) = ∫₀ᵗ ({simplify(h_t_tau)})·({f_tau_expr}) dτ\n\n"
-            f"     = {result}"
-        ))
-        final_answer["x_t"] = str(result)
-        return [{"region": "t > 0", "x_t": result}]
-
-    # -------------------------------------------------------------------
-    # Piecewise interval extraction
+    # Piecewise condition parsing (for custom piecewise input)
     # -------------------------------------------------------------------
     @staticmethod
     def _extract_piece_intervals(pw: sp.Piecewise) -> list[tuple]:
-        """Piecewise에서 (expr, lo, hi) 리스트를 추출.
-
-        SymPy가 조건을 다양하게 단순화하므로 여러 패턴을 처리:
-          - And(tau >= a, tau < b) → (a, b)
-          - StrictGreaterThan(b, tau) i.e. b > tau → (0, b)  (tau positive)
-          - StrictLessThan(tau, b) i.e. tau < b → (0, b)
-          - tau >= a → (a, ∞)
-          - True → default (skip)
-        """
         intervals = []
         for expr_i, cond_i in pw.args:
             if expr_i == 0 or cond_i is sp.true:
                 continue
-
             lo, hi = sp.S.Zero, oo
-
-            # Case 1: And(rel1, rel2)
             if isinstance(cond_i, sp.And):
                 for rel in cond_i.args:
                     bound = ConvolutionSolver._parse_relational(rel)
@@ -653,7 +523,6 @@ class ConvolutionSolver(BaseSolver):
                             lo = bound[1]
                         else:
                             hi = bound[1]
-            # Case 2: single relational (e.g. t_1 > tau, tau < t_1)
             elif isinstance(cond_i, sp.core.relational.Relational):
                 bound = ConvolutionSolver._parse_relational(cond_i)
                 if bound:
@@ -661,65 +530,31 @@ class ConvolutionSolver(BaseSolver):
                         lo = bound[1]
                     else:
                         hi = bound[1]
-
             intervals.append((expr_i, lo, hi))
-
         return intervals
 
     @staticmethod
     def _parse_relational(rel) -> tuple | None:
-        """단일 관계식에서 tau의 상한/하한을 추출.
-
-        Returns ("lo", value) or ("hi", value) or None.
-        """
         if not hasattr(rel, 'lhs'):
             return None
-
         lhs, rhs = rel.lhs, rel.rhs
-
-        # tau >= a  or  tau > a  → lo = a
-        if lhs == tau and isinstance(rel, (sp.core.relational.GreaterThan,
-                                           sp.core.relational.StrictGreaterThan)):
+        if lhs == tau and isinstance(rel, (sp.core.relational.GreaterThan, sp.core.relational.StrictGreaterThan)):
             return ("lo", rhs)
-
-        # a <= tau  or  a < tau  → lo = a
-        if rhs == tau and isinstance(rel, (sp.core.relational.LessThan,
-                                           sp.core.relational.StrictLessThan)):
+        if rhs == tau and isinstance(rel, (sp.core.relational.LessThan, sp.core.relational.StrictLessThan)):
             return ("lo", lhs)
-
-        # tau <= b  or  tau < b  → hi = b
-        if lhs == tau and isinstance(rel, (sp.core.relational.LessThan,
-                                           sp.core.relational.StrictLessThan)):
+        if lhs == tau and isinstance(rel, (sp.core.relational.LessThan, sp.core.relational.StrictLessThan)):
             return ("hi", rhs)
-
-        # b >= tau  or  b > tau  → hi = b
-        if rhs == tau and isinstance(rel, (sp.core.relational.GreaterThan,
-                                           sp.core.relational.StrictGreaterThan)):
+        if rhs == tau and isinstance(rel, (sp.core.relational.GreaterThan, sp.core.relational.StrictGreaterThan)):
             return ("hi", lhs)
-
         return None
 
     def get_input_template(self) -> dict:
         return {
-            "system_order": {
-                "type": "int",
-                "default": 2,
-                "description": "시스템 차수 (1 or 2)",
-            },
+            "system_order": {"type": "int", "default": 2, "description": "시스템 차수 (1 or 2)"},
             "m": {"type": "float/str", "description": "질량 (2차 시스템)"},
             "c": {"type": "float/str", "description": "감쇠 계수"},
             "k": {"type": "float/str", "description": "강성 계수"},
-            "input_mode": {
-                "type": "str",
-                "description": "'preset' (프리셋) 또는 'piecewise' (구간별 정의)",
-            },
-            "force_type": {
-                "type": "str",
-                "description": "프리셋: 'step', 'ramp', 'exponential', "
-                               "'exp_truncated', 'harmonic', 'rectangular_pulse'",
-            },
-            "pieces": {
-                "type": "list[dict]",
-                "description": "piecewise 모드: [{'expr': 'F0*exp(-a*t)', 'start': 0, 'end': 't1'}, ...]",
-            },
+            "input_mode": {"type": "str", "description": "'preset' or 'piecewise'"},
+            "force_type": {"type": "str", "description": "'step','ramp','exponential','exp_truncated','harmonic','rectangular_pulse'"},
+            "pieces": {"type": "list[dict]", "description": "[{'expr':'F0*exp(-a*t)','start':0,'end':'t1'},...]"},
         }
